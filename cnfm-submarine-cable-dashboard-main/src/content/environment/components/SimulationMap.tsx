@@ -105,7 +105,34 @@ function DynamicMarker({ position, label, icon }: DynamicMarkerProps) {
   return null;
 }
 
-const SimulationMap = () => {
+interface CableCut {
+  cut_id: string;
+  cut_type: string;
+  fault_date: string;
+  distance: number;
+  simulated: string;
+  latitude: number;
+  longitude: number;
+  depth: number;
+}
+
+interface SimulationMapProps {
+  selectedCable?: CableCut | null;
+}
+
+const SimulationMap: React.FC<SimulationMapProps> = ({ selectedCable }) => {
+  // Pan/zoom to selected cable location
+  useEffect(() => {
+    if (selectedCable && selectedCable.latitude && selectedCable.longitude) {
+      // Use a ref to get the map instance
+      const map = mapRef.current;
+      if (map) {
+        map.setView([selectedCable.latitude, selectedCable.longitude], 10, {
+          animate: true
+        });
+      }
+    }
+  }, [selectedCable]);
   const [mapHeight, setMapHeight] = useState('600px');
   const [ipopUtilization, setIpopUtilization] = useState('0%');
   const [ipopDifference, setIpopDifference] = useState('0%');
@@ -244,10 +271,16 @@ const SimulationMap = () => {
     return null;
   };
 
+  // Ref for map instance
+  const mapRef = useRef<L.Map | null>(null);
   return (
     <>
       {/* Map Container */}
-      <MapContainer style={{ height: mapHeight, width: '100%' }}>
+      <MapContainer
+        style={{ height: mapHeight, width: '100%' }}
+        ref={mapRef}
+      >
+
         <RemoveAttribution />
         <ChangeView center={[18, 134]} zoom={3.5} />
         {/*<TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />*/}

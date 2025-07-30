@@ -113,7 +113,36 @@ const RemoveAttribution = () => {
   return null;
 };
 
-const CableMap = () => {
+interface CableCut {
+  cut_id: string;
+  cut_type: string;
+  fault_date: string;
+  distance: number;
+  simulated: string;
+  latitude: number;
+  longitude: number;
+  depth: number;
+}
+
+interface CableMapProps {
+  selectedCable?: CableCut | null;
+}
+
+const CableMap: React.FC<CableMapProps> = ({ selectedCable }) => {
+  // Ref for map instance
+  const mapRef = useRef<L.Map | null>(null);
+
+  // Pan/zoom to selected cable location
+  useEffect(() => {
+    if (selectedCable && selectedCable.latitude && selectedCable.longitude) {
+      const map = mapRef.current;
+      if (map) {
+        map.setView([selectedCable.latitude, selectedCable.longitude], 10, {
+          animate: true
+        });
+      }
+    }
+  }, [selectedCable]);
   const [mapHeight, setMapHeight] = useState('600px');
   const [ipopUtilization, setIpopUtilization] = useState('0%');
   const [ipopDifference, setIpopDifference] = useState('0%');
@@ -244,7 +273,10 @@ const CableMap = () => {
   return (
     <>
       {/* Map Container */}
-      <MapContainer style={{ height: mapHeight, width: '100%' }}>
+      <MapContainer
+        style={{ height: mapHeight, width: '100%' }}
+        ref={mapRef}
+      >
         <RemoveAttribution />
         <ChangeView center={[18, 134]} zoom={3.5} />
         <TileLayer

@@ -12,6 +12,18 @@ import Swal from 'sweetalert2';
 import React, { useEffect, useState } from 'react';
 import Header from 'src/components/Header';
 import SimulationMap from './components/SimulationMap';
+import DeletedCablesSidebar from '../admin/components/DeletedCablesSidebar';
+
+interface CableCut {
+  cut_id: string;
+  cut_type: string;
+  fault_date: string;
+  distance: number;
+  simulated: string;
+  latitude: number;
+  longitude: number;
+  depth: number;
+}
 
 function SimulationEnvironment() {
   const theme = useTheme();
@@ -19,6 +31,7 @@ function SimulationEnvironment() {
   const port = process.env.REACT_APP_PORT;
   const fileInputRef = React.useRef<HTMLInputElement | null>(null);
   const [lastUpdate, setLastUpdate] = useState<string | null>(null);
+  const [selectedCable, setSelectedCable] = useState<CableCut | null>(null);
 
   return (
     <Box
@@ -78,7 +91,14 @@ function SimulationEnvironment() {
               }}
             >
               <Grid spacing={0} container>
-                <Grid item xs={12}>
+                <Grid item xs={12} md={3}>
+                  <DeletedCablesSidebar
+                    onSelectCable={(cable: CableCut) => setSelectedCable(cable)}
+                    lastUpdate={lastUpdate}
+                    setLastUpdate={setLastUpdate}
+                  />
+                </Grid>
+                <Grid item xs={12} md={9}>
                   <Box p={4}>
                     <Header />
                     {/* Legend */}
@@ -94,7 +114,7 @@ function SimulationEnvironment() {
                       <Box sx={{ flexGrow: 1 }} />
                     </Box>
                     {/* Map Container */}
-                    <SimulationMap />
+                    <SimulationMap selectedCable={selectedCable} />
                   </Box>
                 </Grid>
               </Grid>

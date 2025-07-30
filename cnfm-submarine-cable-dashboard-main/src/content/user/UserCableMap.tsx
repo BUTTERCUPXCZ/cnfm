@@ -112,7 +112,19 @@ const RemoveAttribution = () => {
   return null;
 };
 
-const UserCableMap = () => {
+interface UserCableMapProps {
+  selectedCable?: any;
+}
+
+const UserCableMap = ({ selectedCable }: UserCableMapProps) => {
+  // Pan/zoom to selected cable location if selectedCable changes
+  const mapRef = useRef<any>(null);
+  useEffect(() => {
+    if (selectedCable && selectedCable.latitude && selectedCable.longitude && mapRef.current) {
+      const map = mapRef.current;
+      map.setView([selectedCable.latitude, selectedCable.longitude], 10, { animate: true });
+    }
+  }, [selectedCable]);
   const [mapHeight, setMapHeight] = useState('600px');
   const [ipopUtilization, setIpopUtilization] = useState('0%');
   const [ipopDifference, setIpopDifference] = useState('0%');
@@ -243,7 +255,7 @@ const UserCableMap = () => {
   return (
     <>
       {/* Map Container */}
-      <MapContainer style={{ height: mapHeight, width: '100%' }}>
+      <MapContainer style={{ height: mapHeight, width: '100%' }} ref={mapRef}>
         <RemoveAttribution />
         <ChangeView center={[18, 134]} zoom={3.5} />
         <TileLayer

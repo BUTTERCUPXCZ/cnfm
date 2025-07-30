@@ -11,6 +11,7 @@ import {
 import Header from 'src/components/Header';
 import React, { useCallback, useEffect, useState } from 'react';
 import UserCableMap from './UserCableMap';
+import DeletedCablesSidebar from '../admin/components/DeletedCablesSidebar';
 
 const legendItems = [
   { name: 'TGN-IA', color: 'yellow' },
@@ -24,6 +25,7 @@ function UserDashboard() {
   const apiBaseUrl = process.env.REACT_APP_API_BASE_URL;
   const port = process.env.REACT_APP_PORT;
   const [lastUpdate, setLastUpdate] = useState<string | null>(null);
+  const [selectedCable, setSelectedCable] = useState<any | null>(null);
 
   // ✅ Create a reusable fetch function
   const fetchLastUpdate = useCallback(async () => {
@@ -99,8 +101,15 @@ function UserDashboard() {
           <Grid item xs={12}>
             <Card>
               <Grid spacing={0} container>
-                <Grid item xs={12}>
-                  <Box p={4}>
+                <Grid item xs={12} md={3} sx={{ height: '100%' }}>
+                  <DeletedCablesSidebar
+                    lastUpdate={lastUpdate}
+                    setLastUpdate={setLastUpdate}
+                    onSelectCable={setSelectedCable}
+                  />
+                </Grid>
+                <Grid item xs={12} md={9} sx={{ height: '100%' }}>
+                  <Box p={4} sx={{ height: '100%' }}>
                     <Header />
                     {/* Legend */}
                     <Box
@@ -141,7 +150,7 @@ function UserDashboard() {
                       </Box>
                     </Box>
                     {/* Map Container */}
-                    <UserCableMap />
+                    <UserCableMap selectedCable={selectedCable} />
                   </Box>
                 </Grid>
               </Grid>
