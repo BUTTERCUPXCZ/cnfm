@@ -1095,6 +1095,21 @@ const sea_us_2_headers = [
   'burial_depth', 'route_features', 'a', 'aa', 'ee'
 ];
 
+const sea_us_4_headers = [
+  'pos_no', 'event', 'latitude', 'latitude2', 'latitude3', 'longitude',
+  'longitude2', 'longitude3', 'decimal_latitude', 'radians_latitude',
+  'sin_latitude', 'meridional_parts', 'distance_from_equator',
+  'decimal_longitude', 'difference_in_latitude', 'difference_in_mps',
+  'difference_in_edist', 'difference_in_longitude', 'course',
+  'distance_in_nmiles', 'bearing', 'between_positions', 'cumulative_total',
+  'slack', 'cable_between_positions', 'cable_cumulative_total', 'cable_type',
+  'cumulative_by_type', 'cable_totals_by_type', 'approx_depth',
+  'lay_direction', 'lay_vessel', 'date_installed', 'burial_method',
+  'burial_depth', 'route_features', 'a', 'aa', 'ee',
+  'ignore_1', 'ignore_2', 'ignore_3', 'ignore_4', 'ignore_5',
+  'ignore_6', 'ignore_7', 'ignore_8', 'ignore_9'
+];
+
 const sjc_headers = [
   'pos_no', 'event', 'latitude', 'latitude2', 'latitude3', 'longitude',
   'longitude2', 'longitude3', 'decimal_latitude', 'radians_latitude',
@@ -1148,9 +1163,15 @@ app.post('/upload-rpl/:cable/:segment', upload.single('file'), (req, res) => {
   console.log(`Target table: ${tableName}`);
 
   // Determine headers based on cable type and segment
-  let headers;
+    let headers;
   if (cable === 'sea-us') {
-    headers = segment === 's2' ? sea_us_2_headers : sea_us_1_3_headers;
+    if (segment === 's2') {
+      headers = sea_us_2_headers;
+    } else if (segment === 's4') {
+      headers = sea_us_4_headers;
+    } else {
+      headers = sea_us_1_3_headers;
+    }
   } else if (cable === 'sjc') {
     headers = sjc_headers;
   } else if (cable === 'tgnia') {
@@ -1261,6 +1282,39 @@ app.post('/upload-rpl/:cable/:segment', upload.single('file'), (req, res) => {
               row.cumulative_by_type || null, row.cable_totals_by_type || null, row.approx_depth || null,
               row.planned_target_burial_depth || null, row.route_features || null,
               row.a || null, row.aa || null, row.ee || null
+            ]);
+          } else if (cable === 'sea-us' && segment === 's4') {
+            // Query for SEA-US segment 4 (has its own structure)
+            insertQuery = `
+              INSERT INTO ${tableName} (
+                pos_no, event, latitude, latitude2, latitude3, longitude, longitude2, longitude3,
+                decimal_latitude, radians_latitude, sin_latitude, meridional_parts,
+                distance_from_equator, decimal_longitude, difference_in_latitude, 
+                difference_in_mps, difference_in_edist, difference_in_longitude, 
+                course, distance_in_nmiles, bearing, between_positions, cumulative_total, 
+                slack, cable_between_positions, cable_cumulative_total, cable_type, 
+                cumulative_by_type, cable_totals_by_type, approx_depth, lay_direction, 
+                lay_vessel, date_installed, burial_method, burial_depth, route_features, 
+                a, aa, ee, ignore_1, ignore_2, ignore_3, ignore_4, ignore_5, 
+                ignore_6, ignore_7, ignore_8, ignore_9
+              ) VALUES ?`;
+
+            values = results.map(row => [
+              row.pos_no || null, row.event || null, row.latitude || null,
+              row.latitude2 || null, row.latitude3 || null, row.longitude || null,
+              row.longitude2 || null, row.longitude3 || null, row.decimal_latitude || null,
+              row.radians_latitude || null, row.sin_latitude || null, row.meridional_parts || null,
+              row.distance_from_equator || null, row.decimal_longitude || null, row.difference_in_latitude || null,
+              row.difference_in_mps || null, row.difference_in_edist || null, row.difference_in_longitude || null,
+              row.course || null, row.distance_in_nmiles || null, row.bearing || null,
+              row.between_positions || null, row.cumulative_total || null, row.slack || null,
+              row.cable_between_positions || null, row.cable_cumulative_total || null, row.cable_type || null,
+              row.cumulative_by_type || null, row.cable_totals_by_type || null, row.approx_depth || null,
+              row.lay_direction || null, row.lay_vessel || null, row.date_installed || null,
+              row.burial_method || null, row.burial_depth || null, row.route_features || null,
+              row.a || null, row.aa || null, row.ee || null,
+              row.ignore_1 || null, row.ignore_2 || null, row.ignore_3 || null, row.ignore_4 || null, row.ignore_5 || null,
+              row.ignore_6 || null, row.ignore_7 || null, row.ignore_8 || null, row.ignore_9 || null
             ]);
           } else if (cable === 'sjc') {
             // Query for SJC cable
