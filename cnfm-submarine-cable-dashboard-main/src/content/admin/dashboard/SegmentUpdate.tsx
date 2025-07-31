@@ -40,7 +40,10 @@ const SegmentUpdate = () => {
       'sea-us': [
         { id: 's1', name: 'Kauditan, Indonesia - BU (Segment 1)' },
         { id: 's2', name: 'Davao, Philippines - BU (Segment 2)' },
-        { id: 's3', name: 'Piti, Guam - BU (Segment 3)' }
+        { id: 's3', name: 'Piti, Guam - BU Davao (Segment 3)' },
+        { id: 's4', name: 'Piti, Guam - BU Hawaii (Segment 4)'},
+        { id: 's5', name: 'Makaha, Hawaii - BU (Segment 5)' },
+        { id: 's6', name: 'BMH - BU2 (Segment 6)' }
       ],
       sjc: [
         { id: 's1', name: 'Segment 1' },
