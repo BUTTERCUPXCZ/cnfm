@@ -1,4 +1,7 @@
 import { Box, Typography } from '@mui/material';
+import { IconButton, Tooltip } from '@mui/material';
+import MenuIcon from '@mui/icons-material/Menu';
+import DeletedCablesSidebar from '../admin/components/DeletedCablesSidebar';
 import { MapContainer, TileLayer, useMap } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
 import { useEffect, useRef, useState } from 'react';
@@ -252,105 +255,140 @@ const UserCableMap = ({ selectedCable }: UserCableMapProps) => {
     return () => clearInterval(interval); // Cleanup on unmount
   }, [apiBaseUrl, port]);
 
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [lastUpdate, setLastUpdate] = useState<string | null>(null);
+  const [selectedDeletedCable, setSelectedDeletedCable] = useState(null);
+
+  // Fetch last update for sidebar (optional, can be customized)
+  useEffect(() => {
+    // Example: fetch last update from API if needed
+    // setLastUpdate('2025-07-31');
+  }, []);
+
   return (
-    <>
-      {/* Map Container */}
-      <MapContainer style={{ height: mapHeight, width: '100%' }} ref={mapRef}>
-        <RemoveAttribution />
-        <ChangeView center={[18, 134]} zoom={3.5} />
-        <TileLayer
-          url={`https://maps.geoapify.com/v1/tile/klokantech-basic/{z}/{x}/{y}.png?apiKey=${mapApiKey}`}
-        />
+    <MapContainer style={{ height: mapHeight, width: '100%', position: 'relative' }} ref={mapRef}>
+      <RemoveAttribution />
+      <ChangeView center={[18, 134]} zoom={3.5} />
+      <TileLayer
+        url={`https://maps.geoapify.com/v1/tile/klokantech-basic/{z}/{x}/{y}.png?apiKey=${mapApiKey}`}
+      />
+      {/* Toggle Button for Sidebar */}
+      <Box sx={{ position: 'absolute', top: 16, left: 32, zIndex: 1200 }}>
+        <Tooltip title="Show Deleted Cables Sidebar" arrow>
+          <IconButton
+            sx={{ background: '#fff', boxShadow: 2, borderRadius: 1, p: 1, '&:hover': { background: '#e3e8f5' } }}
+            onClick={() => setSidebarOpen((open) => !open)}
+            aria-label="Show Deleted Cables Sidebar"
+          >
+            <MenuIcon sx={{ fontSize: 28, color: '#3854A5' }} />
+          </IconButton>
+        </Tooltip>
+      </Box>
+      {/* Sidebar Overlay inside the map */}
+      {sidebarOpen && (
         <Box
           sx={{
             position: 'absolute',
-            top: 10,
-            right: 10,
-            backgroundColor: 'rgba(255, 255, 255, 0.7)',
-            color: 'white',
-            padding: '8px 12px',
+            top: 0,
+            left: 0,
+            height: '100%',
+            width: 360,
+            zIndex: 1100,
+            display: 'flex',
+            flexDirection: 'column',
+            boxShadow: 4,
             borderRadius: '8px',
-            zIndex: 1000,
-            fontSize: '14px',
-            flexDirection: 'row'
+            overflow: 'hidden',
+            background: 'rgba(255, 255, 255, 0.7)',
           }}
         >
-          <Typography variant="caption" color="gray">
-            Capacity:
-          </Typography>
-          <Typography variant="h4" color="black">
-            {stats.totalGbps} Gbps
-          </Typography>
-
-          <Typography variant="caption" color="gray">
-            Average Utilization:
-          </Typography>
-          <Typography variant="h4" color="black">
-            {ipopUtilization}
-          </Typography>
+          <DeletedCablesSidebar
+            onSelectCable={(cable) => {
+              setSelectedDeletedCable(cable);
+              // Pan the map to the cable's location if available
+              if (cable && cable.latitude && cable.longitude && mapRef.current) {
+                mapRef.current.setView([cable.latitude, cable.longitude], 8, { animate: true });
+              }
+            }}
+            lastUpdate={lastUpdate}
+            setLastUpdate={setLastUpdate}
+          />
         </Box>
-        {/* Dynamic Hoverable Dot Markers*/}
-        <DynamicMarker
-          position={[1.3678, 125.0788]}
-          label="Kauditan, Indonesia"
-        />
-        <DynamicMarker
-          position={[7.0439, 125.542]}
-          label="Davao, Philippines"
-        />
-        <DynamicMarker position={[13.464717, 144.69305]} label="Piti, Guam" />
-        <DynamicMarker
-          position={[21.4671, 201.7798]}
-          label="Makaha, Hawaii, USA"
-        />
-        <USAMarker />
-        <DynamicMarker
-          position={[14.0679, 120.6262]}
-          label="Nasugbu, Philippines"
-        />
-        <DynamicMarker
-          position={[18.412883, 121.517283]}
-          label="Ballesteros, Philippines"
-        />
-        <JapanMarker />
-        <HongkongMarker />
-        <SingaporeMarker />
-        <SeaUS />
-        <RPLSeaUS1 />
-        <RPLSeaUS2 />
-        <RPLSeaUS3 />
-        <RPLSeaUS4 />
-        <RPLSeaUS5 />
-        <RPLSeaUS6 />
-        <RPLSJC1 />
-        <RPLSJC3 />
-        <RPLSJC4 />
-        <RPLSJC5 />
-        <RPLSJC6 />
-        <RPLSJC7 />
-        <RPLSJC8 />
-        <RPLSJC9 />
-        <RPLSJC10 />
-        <RPLSJC11 />
-        <RPLSJC12 />
-        <RPLSJC13 />
-        <RPLTGNIA1 />
-        <RPLTGNIA2 />
-        <RPLTGNIA3 />
-        <RPLTGNIA4 />
-        <RPLTGNIA5 />
-        <RPLTGNIA6 />
-        <RPLTGNIA7 />
-        <RPLTGNIA8 />
-        <RPLTGNIA9 />
-        <RPLTGNIA10 />
-        <RPLTGNIA11 />
-        <RPLTGNIA12 />
-        <SJC />
-        <C2C />
-        <TGNIA />
-      </MapContainer>
-    </>
+      )}
+      <Box
+        sx={{
+          position: 'absolute',
+          top: 10,
+          right: 10,
+          backgroundColor: 'rgba(255, 255, 255, 0.7)',
+          color: 'white',
+          padding: '8px 12px',
+          borderRadius: '8px',
+          zIndex: 1000,
+          fontSize: '14px',
+          flexDirection: 'row'
+        }}
+      >
+        <Typography variant="caption" color="gray">
+          Capacity:
+        </Typography>
+        <Typography variant="h4" color="black">
+          {stats.totalGbps} Gbps
+        </Typography>
+
+        <Typography variant="caption" color="gray">
+          Average Utilization:
+        </Typography>
+        <Typography variant="h4" color="black">
+          {ipopUtilization}
+        </Typography>
+      </Box>
+      {/* Dynamic Hoverable Dot Markers*/}
+      <DynamicMarker position={[1.3678, 125.0788]} label="Kauditan, Indonesia" />
+      <DynamicMarker position={[7.0439, 125.542]} label="Davao, Philippines" />
+      <DynamicMarker position={[13.464717, 144.69305]} label="Piti, Guam" />
+      <DynamicMarker position={[21.4671, 201.7798]} label="Makaha, Hawaii, USA" />
+      <USAMarker />
+      <DynamicMarker position={[14.0679, 120.6262]} label="Nasugbu, Philippines" />
+      <DynamicMarker position={[18.412883, 121.517283]} label="Ballesteros, Philippines" />
+      <JapanMarker />
+      <HongkongMarker />
+      <SingaporeMarker />
+      <SeaUS />
+      <RPLSeaUS1 />
+      <RPLSeaUS2 />
+      <RPLSeaUS3 />
+      <RPLSeaUS4 />
+      <RPLSeaUS5 />
+      <RPLSeaUS6 />
+      <RPLSJC1 />
+      <RPLSJC3 />
+      <RPLSJC4 />
+      <RPLSJC5 />
+      <RPLSJC6 />
+      <RPLSJC7 />
+      <RPLSJC8 />
+      <RPLSJC9 />
+      <RPLSJC10 />
+      <RPLSJC11 />
+      <RPLSJC12 />
+      <RPLSJC13 />
+      <RPLTGNIA1 />
+      <RPLTGNIA2 />
+      <RPLTGNIA3 />
+      <RPLTGNIA4 />
+      <RPLTGNIA5 />
+      <RPLTGNIA6 />
+      <RPLTGNIA7 />
+      <RPLTGNIA8 />
+      <RPLTGNIA9 />
+      <RPLTGNIA10 />
+      <RPLTGNIA11 />
+      <RPLTGNIA12 />
+      <SJC />
+      <C2C />
+      <TGNIA />
+    </MapContainer>
   );
 };
 

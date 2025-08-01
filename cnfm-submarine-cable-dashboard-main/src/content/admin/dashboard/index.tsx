@@ -16,7 +16,6 @@ import Header from 'src/components/Header';
 import CableMap from '../components/CableMap';
 import React, { useEffect, useState, useCallback } from 'react';
 import SegmentUpdate from './SegmentUpdate';
-import DeletedCablesSidebar from '../components/DeletedCablesSidebar';
 
 const legendItems = [
   { name: 'TGN-IA', color: 'yellow' },
@@ -25,24 +24,12 @@ const legendItems = [
   { name: 'C2C', color: 'orange' }
 ];
 
-interface CableCut {
-  cut_id: string;
-  cut_type: string;
-  fault_date: string;
-  distance: number;
-  simulated: string;
-  latitude: number;
-  longitude: number;
-  depth: number;
-}
-
 function AdminDashboard() {
   const theme = useTheme();
   const apiBaseUrl = process.env.REACT_APP_API_BASE_URL;
   const port = process.env.REACT_APP_PORT;
   const fileInputRef = React.useRef<HTMLInputElement | null>(null);
   const [lastUpdate, setLastUpdate] = useState<string | null>(null);
-  const [selectedCable, setSelectedCable] = useState<CableCut | null>(null);
 
   // ✅ Create a reusable fetch function
   const fetchLastUpdate = useCallback(async () => {
@@ -208,15 +195,8 @@ function AdminDashboard() {
           <Grid item xs={12}>
             <Card>
               <Grid spacing={0} container>
-                <Grid item xs={12} md={3} sx={{ height: '100%' }}>
-                  <DeletedCablesSidebar
-                    onSelectCable={(cable: CableCut) => setSelectedCable(cable)}
-                    lastUpdate={lastUpdate}
-                    setLastUpdate={setLastUpdate}
-                  />
-                </Grid>
-                <Grid item xs={12} md={9} sx={{ height: '100%' }}>
-                  <Box p={4} sx={{ height: '100%' }}>
+                <Grid item xs={12}>
+                  <Box p={4}>
                     <Header />
                     <Box
                       sx={{
@@ -295,7 +275,7 @@ function AdminDashboard() {
                         <SegmentUpdate />
                       </Box>
                     </Box>
-                    <CableMap selectedCable={selectedCable} />
+                    <CableMap />
                   </Box>
                 </Grid>
               </Grid>

@@ -1,10 +1,19 @@
 import React, { useEffect, useState } from 'react';
-import { Box, Typography, Checkbox, FormControlLabel, Divider, List, ListItem, ListItemText, Select, MenuItem, InputLabel, FormControl, Button } from '@mui/material';
+import {
+    Box,
+    Typography,
+    Divider,
+    List,
+    ListItem,
+    Button
+} from '@mui/material';
 import RefreshIcon from '@mui/icons-material/Refresh';
+import CableDetailsPopup from './CableDetailsPopup';
 
 interface CableCut {
     cut_id: string;
     cut_type: string;
+    cable_type?: string;
     fault_date: string;
     distance: number;
     simulated: string;
@@ -20,13 +29,18 @@ interface DeletedCablesSidebarProps {
     phTime?: string;
 }
 
-const DeletedCablesSidebar: React.FC<DeletedCablesSidebarProps> = ({ onSelectCable, lastUpdate, setLastUpdate, phTime }) => {
+const DeletedCablesSidebar: React.FC<DeletedCablesSidebarProps> = ({
+    onSelectCable,
+    lastUpdate,
+    setLastUpdate,
+    phTime
+}) => {
     const [deletedCables, setDeletedCables] = useState<CableCut[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
-    const [deletingId, setDeletingId] = useState<string | null>(null);
+    const [popupCable, setPopupCable] = useState<CableCut | null>(null);
+    const [popupPosition, setPopupPosition] = useState<{ x: number; y: number } | null>(null);
 
-    // Fetch function exposed for refresh button
     const fetchDeletedCables = async () => {
         setLoading(true);
         setError(null);
@@ -34,7 +48,6 @@ const DeletedCablesSidebar: React.FC<DeletedCablesSidebarProps> = ({ onSelectCab
             const response = await fetch('http://localhost:8081/fetch-cable-cuts');
             const data = await response.json();
             if (Array.isArray(data)) {
-                // Sort by fault_date descending (latest first)
                 setDeletedCables(
                     [...data].sort((a, b) => {
                         const dateA = new Date(a.fault_date).getTime();
@@ -45,167 +58,194 @@ const DeletedCablesSidebar: React.FC<DeletedCablesSidebarProps> = ({ onSelectCab
             } else {
                 setDeletedCables([]);
             }
-        } catch (err: any) {
+        } catch (err) {
             setError('Failed to fetch deleted cables');
         } finally {
             setLoading(false);
         }
     };
 
-    useEffect(() => {
-        fetchDeletedCables();
-    }, [deletingId, lastUpdate]);
+    const handleCableClick = (cable: CableCut, event: React.MouseEvent) => {
+        // Prevent the default onSelectCable behavior
+        event.stopPropagation();
 
-    const handleDeleteCable = async (cut_id: string) => {
-        setDeletingId(cut_id);
+        // Get the clicked element's position
+        const rect = (event.currentTarget as HTMLElement).getBoundingClientRect();
+        const sidebarRect = (event.currentTarget.closest('[data-sidebar="true"]') as HTMLElement)?.getBoundingClientRect();
+
+        // Calculate position relative to the viewport
+        const x = rect.left + rect.width / 2; // Center of the clicked item horizontally
+        const y = rect.top + rect.height / 2; // Center of the clicked item vertically
+
+        setPopupCable(cable);
+        setPopupPosition({ x, y });
+
+        // Also call the original onSelectCable for map functionality
+        onSelectCable(cable);
+    };
+
+    const handleClosePopup = () => {
+        setPopupCable(null);
+        setPopupPosition(null);
+    };
+
+    const handleDeleteCable = async (cable: CableCut) => {
         try {
-            const response = await fetch(`http://localhost:8081/delete-single-cable-cuts/${cut_id}`, {
-                method: 'DELETE',
-            });
-            if (response.ok) {
-                if (typeof setLastUpdate === 'function') {
-                    setLastUpdate(new Date().toISOString());
-                }
+            // Call backend API to delete the cable cut
+            const response = await fetch(
+                `http://localhost:8081/delete-single-cable-cuts/${cable.cut_id}`,
+                { method: 'DELETE' }
+            );
+            const result = await response.json();
+            if (result.success) {
+                // Refresh the list after successful deletion
+                await fetchDeletedCables();
             } else {
-                setError('Failed to delete cable');
+                alert(result.message || 'Failed to delete cable cut.');
             }
-        } catch (err) {
-            setError('Failed to delete cable');
-        } finally {
-            setDeletingId(null);
+        } catch (error) {
+            console.error('Error deleting cable:', error);
+            alert('Error deleting cable.');
         }
     };
 
+    useEffect(() => {
+        fetchDeletedCables();
+    }, [lastUpdate]);
+
     return (
-        <Box
-            sx={{
-                background: '#f8fbff',
-                borderRadius: 3,
-                boxShadow: '0 2px 12px rgba(56, 84, 165, 0.08)',
-                p: 3,
-                minHeight: '100vh',
-                height: '100%',
-                maxHeight: '100vh',
-                overflowY: 'auto',
-                display: 'flex',
-                flexDirection: 'column',
-                gap: 2,
-            }}
-        >
-            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2 }}>
-                <Box>
-                    <Typography variant="h6" sx={{ color: '#3854A5', fontWeight: 700 }}>
-                        Deleted Cables, Past Session
-                    </Typography>
-                    {phTime && (
-                        <Typography variant="body2" sx={{ color: '#7a92c7', fontWeight: 400 }}>
-                            PH Time: {phTime}
+        <>
+            <Box
+                data-sidebar="true"
+                sx={{
+                    background: 'rgba(255, 255, 255, 0.7)', // semi-transparent white
+                    boxShadow: 4,
+                    p: 2,
+                    width: 360,
+                    minHeight: '100vh',
+                    maxHeight: '100vh',
+                    overflowY: 'auto',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    '&::-webkit-scrollbar': {
+                        width: '6px',
+                    },
+                    '&::-webkit-scrollbar-thumb': {
+                        background: '#ccc',
+                        borderRadius: '8px',
+                    },
+                }}
+            >
+                {/* Header */}
+                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+                    <Box sx={{ pl: 10 }}>
+                        <Typography variant="h6" sx={{ fontWeight: 700, color: '#3854A5' }}>
+                            Deleted Cables
                         </Typography>
-                    )}
+                        {phTime && (
+                            <Typography variant="body2" sx={{ color: '#666' }}>
+                                PH Time: {phTime}
+                            </Typography>
+                        )}
+                    </Box>
+                    <Button
+                        variant="contained"
+                        size="small"
+                        onClick={fetchDeletedCables}
+                        disabled={loading}
+                        startIcon={<RefreshIcon />}
+                        sx={{ textTransform: 'none' }}
+                    >
+                        Refresh
+                    </Button>
                 </Box>
-                <Button
-                    variant="contained"
-                    color="primary"
-                    size="small"
-                    onClick={fetchDeletedCables}
-                    disabled={loading}
-                    sx={{ ml: 2, minWidth: 36, px: 1 }}
-                    startIcon={<RefreshIcon />}
-                >
-                    Refresh
-                </Button>
-            </Box>
-            <Box sx={{ display: 'flex', gap: 2, mb: 2 }}>
-                <FormControl size="small" sx={{ minWidth: 120 }}>
-                    <InputLabel>Format</InputLabel>
-                    <Select defaultValue="Name" label="Format">
-                        <MenuItem value="Name">Name</MenuItem>
-                        <MenuItem value="Date">Date Deleted</MenuItem>
-                    </Select>
-                </FormControl>
-                <FormControl size="small" sx={{ minWidth: 120 }}>
-                    <InputLabel>Sort</InputLabel>
-                    <Select defaultValue="Newest First" label="Sort">
-                        <MenuItem value="Newest First">Newest First</MenuItem>
-                        <MenuItem value="Oldest First">Oldest First</MenuItem>
-                    </Select>
-                </FormControl>
-            </Box>
-            <Divider sx={{ mb: 2 }} />
-            <List sx={{ width: '100%' }}>
-                {loading ? (
-                    <Typography variant="body2" color="text.secondary" sx={{ fontStyle: 'italic', px: 2 }}>
-                        Loading deleted cables...
-                    </Typography>
-                ) : error ? (
-                    <Typography variant="body2" color="error" sx={{ fontStyle: 'italic', px: 2 }}>
-                        {error}
-                    </Typography>
-                ) : deletedCables.length === 0 ? (
-                    <Typography variant="body2" color="text.secondary" sx={{ fontStyle: 'italic', px: 2 }}>
-                        No deleted cables yet.
-                    </Typography>
-                ) : (
-                    deletedCables.map((cable, idx) => (
-                        <ListItem
-                            key={idx}
-                            onClick={() => onSelectCable(cable)}
-                            sx={{
-                                borderRadius: 2,
-                                mb: 1,
-                                background: '#f1f4fa',
-                                boxShadow: '0 1px 4px rgba(56, 84, 165, 0.04)',
-                                transition: 'background 0.2s',
-                                '&:hover': {
-                                    background: '#e3f0ff',
-                                    cursor: 'pointer',
-                                },
-                                flexDirection: 'column',
-                                alignItems: 'flex-start',
-                            }}
-                        >
-                            <ListItemText
-                                primary={
-                                    <>
-                                        <Typography sx={{ fontWeight: 500, color: '#3854A5' }}>
-                                            {cable.cut_type || cable.cut_id || 'Unknown'}
-                                        </Typography>
-                                        <Typography sx={{ fontSize: 12, color: '#7a92c7' }}>
-                                            Deleted: {cable.fault_date || 'N/A'}
-                                        </Typography>
-                                        <Typography sx={{ fontSize: 12, color: '#7a92c7' }}>
-                                            Distance: {cable.distance ?? 'N/A'} km
-                                        </Typography>
-                                        <Typography sx={{ fontSize: 12, color: '#7a92c7' }}>
-                                            Depth: {cable.depth !== undefined && cable.depth !== null ? cable.depth + ' m' : 'N/A'}
-                                        </Typography>
-                                        <Typography sx={{ fontSize: 12, color: '#7a92c7' }}>
-                                            Lat/Lng: {cable.latitude}, {cable.longitude}
-                                        </Typography>
-                                        <Typography sx={{ fontSize: 12, color: '#7a92c7' }}>
-                                            Simulated: {cable.simulated}
-                                        </Typography>
-                                    </>
-                                }
-                            />
-                            <Button
-                                variant="outlined"
-                                color="error"
-                                size="small"
-                                sx={{ mt: 1, alignSelf: 'flex-end' }}
-                                disabled={deletingId === cable.cut_id}
-                                onClick={(e) => {
-                                    e.stopPropagation();
-                                    handleDeleteCable(cable.cut_id);
+
+                <Divider sx={{ mb: 1 }} />
+
+                {/* List of Deleted Cables */}
+                <List sx={{ width: '100%' }}>
+                    {loading ? (
+                        <Typography variant="body2" color="text.secondary" sx={{ fontStyle: 'italic', px: 2 }}>
+                            Loading deleted cables...
+                        </Typography>
+                    ) : error ? (
+                        <Typography variant="body2" color="error" sx={{ fontStyle: 'italic', px: 2 }}>
+                            {error}
+                        </Typography>
+                    ) : deletedCables.length === 0 ? (
+                        <Typography variant="body2" color="text.secondary" sx={{ fontStyle: 'italic', px: 2 }}>
+                            No deleted cables yet.
+                        </Typography>
+                    ) : (
+                        deletedCables.map((cable, idx) => (
+                            <ListItem
+                                key={idx}
+                                onClick={(event) => handleCableClick(cable, event)}
+                                sx={{
+                                    px: 2,
+                                    py: 1.5,
+                                    borderBottom: '1px solid #eee',
+                                    flexDirection: 'column',
+                                    alignItems: 'flex-start',
+                                    transition: 'background 0.2s',
+                                    '&:hover': {
+                                        background: '#f4f8ff',
+                                        cursor: 'pointer',
+                                    },
                                 }}
                             >
-                                {deletingId === cable.cut_id ? 'Deleting...' : 'Delete'}
-                            </Button>
-                        </ListItem>
-                    ))
-                )}
-            </List>
-        </Box>
+                                {/* Line 1: Distance and Cut ID */}
+                                <Typography
+                                    variant="subtitle1"
+                                    sx={{ fontWeight: 600, color: '#1a2a4b' }}
+                                >
+                                    {cable.distance ?? 'N/A'} km — {cable.cut_id || 'Unknown'}
+                                </Typography>
+
+                                {/* Line 2: Date and Depth */}
+                                <Typography
+                                    variant="body2"
+                                    sx={{ color: '#444', mt: 0.5 }}
+                                >
+                                    {cable.fault_date
+                                        ? new Date(cable.fault_date).toLocaleDateString('en-GB', {
+                                            day: '2-digit',
+                                            month: 'short',
+                                            year: 'numeric'
+                                        })
+                                        : 'Date Unknown'}
+                                    {' — '}
+                                    Depth: {cable.depth ? `${cable.depth}m` : 'Unknown'}
+                                </Typography>
+
+                                {/* Line 3: Cut Type */}
+                                <Typography
+                                    variant="body2"
+                                    sx={{ color: '#444', mt: 0.2 }}
+                                >
+                                    Cut Type: {cable.cut_type || 'Unknown'}
+                                </Typography>
+                                {/* Line 4: Cable Type */}
+                                <Typography
+                                    variant="body2"
+                                    sx={{ color: '#444', mt: 0.2 }}
+                                >
+                                    Cable Type: {cable.cable_type || 'Unknown'}
+                                </Typography>
+                            </ListItem>
+                        ))
+                    )}
+                </List>
+            </Box>
+
+            {/* Popup Component */}
+            <CableDetailsPopup
+                cable={popupCable}
+                position={popupPosition}
+                onClose={handleClosePopup}
+                onDelete={handleDeleteCable}
+            />
+        </>
     );
 };
 

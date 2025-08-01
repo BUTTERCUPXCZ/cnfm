@@ -174,6 +174,8 @@ function RPLSeaUS2() {
         const response = await fetch(`${apiBaseUrl}${port}/sea-us-rpl-s2`);
         const result = await response.json();
 
+        console.log('API /sea-us-rpl-s2 result:', result);
+
         if (Array.isArray(result) && result.length > 0) {
           // Store the full segment data for hover popup
           setSegmentData(result);
@@ -190,9 +192,19 @@ function RPLSeaUS2() {
                 [item.full_latitude, item.full_longitude] as [number, number]
             );
 
+          console.log('Mapped polyline positions:', mappedPositions);
+
+          // Check for BMH Davao City and BU Davao City
+          const hasBMHDavao = result.some((item: any) => item.event && item.event.includes('BMH Davao City'));
+          const hasBUDavao = result.some((item: any) => item.event && item.event.includes('BU Davao City'));
+          if (!hasBMHDavao || !hasBUDavao) {
+            console.warn('Missing BMH Davao City or BU Davao City in API data!');
+          }
+
           setPositions(mappedPositions);
           clearInterval(interval);
         } else {
+          console.warn('API /sea-us-rpl-s2 returned no data or invalid format.');
         }
       } catch (err) {
         console.error('Error fetching polyline data:', err);
