@@ -6,8 +6,11 @@ import {
   Grid,
   Typography,
   useTheme,
-  Container
+  Container,
+  IconButton,
+  Paper
 } from '@mui/material';
+import MenuIcon from '@mui/icons-material/Menu';
 import Swal from 'sweetalert2';
 import React, { useEffect, useState } from 'react';
 import Header from 'src/components/Header';
@@ -32,6 +35,7 @@ function SimulationEnvironment() {
   const fileInputRef = React.useRef<HTMLInputElement | null>(null);
   const [lastUpdate, setLastUpdate] = useState<string | null>(null);
   const [selectedCable, setSelectedCable] = useState<CableCut | null>(null);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
 
   return (
     <Box
@@ -87,37 +91,63 @@ function SimulationEnvironment() {
               sx={{
                 overflow: 'visible',
                 borderLeft: '4px solid #3854A5', // Primary blue border on cards
-                boxShadow: '0 4px 20px 0 rgba(56, 84, 165, 0.1)' // Subtle blue shadow
+                boxShadow: '0 4px 20px 0 rgba(56, 84, 165, 0.1)', // Subtle blue shadow
+                position: 'relative'
               }}
             >
-              <Grid spacing={0} container>
-                <Grid item xs={12} md={3}>
-                  <DeletedCablesSidebar
-                    onSelectCable={(cable: CableCut) => setSelectedCable(cable)}
-                    lastUpdate={lastUpdate}
-                    setLastUpdate={setLastUpdate}
-                  />
-                </Grid>
-                <Grid item xs={12} md={9}>
-                  <Box p={4}>
-                    <Header />
-                    {/* Legend */}
-                    <Box
-                      sx={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: 3,
-                        flexWrap: 'wrap',
-                        mb: 1
+              <Box sx={{ position: 'relative', width: '100%', height: '100%' }}>
+                {/* Toggle Button for Sidebar */}
+                <IconButton
+                  sx={{
+                    position: 'absolute',
+                    top: 16,
+                    left: 32,
+                    zIndex: 1200,
+                    background: '#fff',
+                    boxShadow: 2,
+                    borderRadius: 1,
+                    p: 1,
+                    '&:hover': { background: '#e3e8f5' }
+                  }}
+                  onClick={() => setSidebarOpen((open) => !open)}
+                  aria-label="Show Deleted Cables Sidebar"
+                >
+                  <MenuIcon sx={{ fontSize: 28, color: '#3854A5' }} />
+                </IconButton>
+                {/* Sidebar Overlay inside the map */}
+                {sidebarOpen && (
+                  <Paper
+                    elevation={4}
+                    sx={{
+                      position: 'absolute',
+                      top: 0,
+                      left: 0,
+                      height: '100%',
+                      width: 360,
+                      zIndex: 1100,
+                      display: 'flex',
+                      flexDirection: 'column',
+                      boxShadow: 4,
+                      borderRadius: '8px',
+                      overflow: 'hidden',
+                      background: 'rgba(255, 255, 255, 0.7)',
+                    }}
+                  >
+                    <DeletedCablesSidebar
+                      onSelectCable={(cable: CableCut) => {
+                        setSelectedCable(cable);
+                        // Optionally: pan the map to the cable's location if you have a mapRef
                       }}
-                    >
-                      <Box sx={{ flexGrow: 1 }} />
-                    </Box>
-                    {/* Map Container */}
-                    <SimulationMap selectedCable={selectedCable} />
-                  </Box>
-                </Grid>
-              </Grid>
+                      lastUpdate={lastUpdate}
+                      setLastUpdate={setLastUpdate}
+                    />
+                  </Paper>
+                )}
+                {/* Map Container */}
+                <Box sx={{ width: '100%' }}>
+                  <SimulationMap selectedCable={selectedCable} />
+                </Box>
+              </Box>
             </Card>
           </Grid>
         </Grid>
