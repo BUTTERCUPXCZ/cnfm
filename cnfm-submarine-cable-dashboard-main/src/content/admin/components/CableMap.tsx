@@ -1,5 +1,6 @@
-import { Box, Typography } from '@mui/material';
-import { MapContainer, TileLayer, useMap } from 'react-leaflet';
+import { Box, Typography, IconButton, Paper } from '@mui/material';
+import MenuIcon from '@mui/icons-material/Menu';
+import { MapContainer, TileLayer, useMap, Marker, Popup } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
 import { useEffect, useRef, useState } from 'react';
 import L from 'leaflet';
@@ -12,6 +13,7 @@ import HongkongMarker from './HongkongMarker';
 import SingaporeMarker from './SingaporeMarker';
 import USAMarker from './USAMarker';
 import SimulationButton from 'src/content/environment/components/SimulationButton';
+import DeletedCablesSidebar from './DeletedCablesSidebar';
 import RPLSeaUS1 from '../dashboard/RoutePositionList/RPLSeaUS1';
 import RPLSeaUS2 from '../dashboard/RoutePositionList/RPLSeaUS2';
 import RPLSeaUS3 from '../dashboard/RoutePositionList/RPLSeaUS3';
@@ -52,7 +54,7 @@ function ChangeView({ center, zoom }) {
 type DynamicMarkerProps = {
   position: [number, number];
   label: string;
-  icon?: L.Icon; // make it optional with the `?`
+  icon?: L.Icon;
 };
 
 function DynamicMarker({ position, label, icon }: DynamicMarkerProps) {
@@ -84,7 +86,7 @@ function DynamicMarker({ position, label, icon }: DynamicMarkerProps) {
         `<span style="font-size: 14px; font-weight: bold;">${label}</span>`,
         {
           direction: 'top',
-          offset: icon ? [0, -30] : [0, -10], // Tooltip offset adjusted here
+          offset: icon ? [0, -30] : [0, -10],
           permanent: false,
           opacity: 1
         }
@@ -101,48 +103,22 @@ function DynamicMarker({ position, label, icon }: DynamicMarkerProps) {
   return null;
 }
 
-// Custom component to remove attribution
 const RemoveAttribution = () => {
   const map = useMap();
 
   useEffect(() => {
-    // Remove attribution control when component mounts
     map.attributionControl.remove();
   }, [map]);
 
   return null;
 };
 
-interface CableCut {
-  cut_id: string;
-  cut_type: string;
-  fault_date: string;
-  distance: number;
-  simulated: string;
-  latitude: number;
-  longitude: number;
-  depth: number;
-}
-
 interface CableMapProps {
-  selectedCable?: CableCut | null;
+  selectedCable?: any;
+  selectedCutType?: string | null;
 }
 
-const CableMap: React.FC<CableMapProps> = ({ selectedCable }) => {
-  // Ref for map instance
-  const mapRef = useRef<L.Map | null>(null);
-
-  // Pan/zoom to selected cable location
-  useEffect(() => {
-    if (selectedCable && selectedCable.latitude && selectedCable.longitude) {
-      const map = mapRef.current;
-      if (map) {
-        map.setView([selectedCable.latitude, selectedCable.longitude], 10, {
-          animate: true
-        });
-      }
-    }
-  }, [selectedCable]);
+const CableMap: React.FC<CableMapProps> = ({ selectedCable, selectedCutType }) => {
   const [mapHeight, setMapHeight] = useState('600px');
   const [ipopUtilization, setIpopUtilization] = useState('0%');
   const [ipopDifference, setIpopDifference] = useState('0%');
@@ -156,59 +132,46 @@ const CableMap: React.FC<CableMapProps> = ({ selectedCable }) => {
   const port = process.env.REACT_APP_PORT;
   const mapApiKey = process.env.REACT_APP_GEOAPIFY_API_KEY;
 
-  // Function to update height dynamically
-  const updateMapHeight = () => {
-    const screenWidth = window.innerWidth;
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [lastUpdate, setLastUpdate] = useState<string | null>(null);
+  const mapRef = useRef<any>(null);
 
-    if (screenWidth > 1600) {
-      setMapHeight('800px');
-    } else if (screenWidth > 1200) {
-      setMapHeight('700px');
-    } else {
-      setMapHeight('600px');
-    }
+  // Helper function to format date
+  const formatDate = (dateStr: string) => {
+    if (!dateStr) return '';
+    const d = new Date(dateStr);
+    if (isNaN(d.getTime())) return dateStr;
+    return d.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
   };
 
-  // Listen for window resize
   useEffect(() => {
-    updateMapHeight(); // Set initial height
+    const updateMapHeight = () => {
+      const screenWidth = window.innerWidth;
+      if (screenWidth > 1600) {
+        setMapHeight('800px');
+      } else if (screenWidth > 1200) {
+        setMapHeight('700px');
+      } else {
+        setMapHeight('600px');
+      }
+    };
+    updateMapHeight();
     window.addEventListener('resize', updateMapHeight);
     return () => window.removeEventListener('resize', updateMapHeight);
   }, []);
 
   useEffect(() => {
     let interval: NodeJS.Timeout;
-
     const fetchData = async () => {
       try {
         const response = await fetch(`${apiBaseUrl}${port}/data-summary`);
         const result = await response.json();
-
         if (Array.isArray(result) && result.length > 0) {
-          const totalGbps = result.reduce(
-            (sum, item) => sum + (item.gbps || 0),
-            0
-          );
-
-          const totalUtilization = result.reduce(
-            (sum, item) => sum + (item.percent || 0),
-            0
-          );
-
-          const avgUtilization = parseFloat(
-            (totalUtilization / result.length).toFixed(2)
-          );
-
+          const totalGbps = result.reduce((sum, item) => sum + (item.gbps || 0), 0);
+          const totalUtilization = result.reduce((sum, item) => sum + (item.percent || 0), 0);
+          const avgUtilization = parseFloat((totalUtilization / result.length).toFixed(2));
           const zeroCount = result.filter((item) => item.percent === 0).length;
-
-          setStats({
-            data: result,
-            totalGbps,
-            avgUtilization,
-            zeroUtilizationCount: zeroCount
-          });
-
-          // Stop interval after successful fetch
+          setStats({ data: result, totalGbps, avgUtilization, zeroUtilizationCount: zeroCount });
           clearInterval(interval);
         } else {
           console.log('No data received, retrying...');
@@ -217,31 +180,20 @@ const CableMap: React.FC<CableMapProps> = ({ selectedCable }) => {
         console.error('Error fetching data:', err);
       }
     };
-
-    // Run immediately on mount
     fetchData();
-
-    // Set up interval to retry every 2s if no data yet
     interval = setInterval(fetchData, 2000);
-
-    return () => clearInterval(interval); // Cleanup on unmount
+    return () => clearInterval(interval);
   }, [apiBaseUrl, port]);
 
   useEffect(() => {
     let interval: NodeJS.Timeout;
     const fetchIpopUtil = async () => {
       try {
-        const response = await fetch(`${apiBaseUrl}${port}/average-util`, {
-          headers: {
-            'Cache-Control': 'no-cache'
-          }
-        });
+        const response = await fetch(`${apiBaseUrl}${port}/average-util`, { headers: { 'Cache-Control': 'no-cache' } });
         const data = await response.json();
-
         if (data?.current?.length) {
           const currentVal = parseFloat(data.current[0].a_side);
           setIpopUtilization(`${currentVal}%`);
-
           if (data?.previous?.length) {
             const previousVal = parseFloat(data.previous[0].a_side);
             const diff = currentVal - previousVal;
@@ -250,7 +202,6 @@ const CableMap: React.FC<CableMapProps> = ({ selectedCable }) => {
           } else {
             setIpopDifference('');
           }
-
           clearInterval(interval);
         } else {
           setIpopUtilization('0%');
@@ -260,23 +211,58 @@ const CableMap: React.FC<CableMapProps> = ({ selectedCable }) => {
         console.error('Error fetching IPOP utilization:', error);
       }
     };
-
-    // Run immediately on mount
     fetchIpopUtil();
-
-    // Set up interval to retry every 2s if no data yet
     interval = setInterval(fetchIpopUtil, 2000);
-
-    return () => clearInterval(interval); // Cleanup on unmount
+    return () => clearInterval(interval);
   }, [apiBaseUrl, port]);
 
+  useEffect(() => {
+    if (selectedCable && selectedCable.latitude && selectedCable.longitude && mapRef.current) {
+      mapRef.current.setView([selectedCable.latitude, selectedCable.longitude], 10, { animate: true });
+    }
+  }, [selectedCable]);
+
   return (
-    <>
-      {/* Map Container */}
-      <MapContainer
-        style={{ height: mapHeight, width: '100%' }}
-        ref={mapRef}
+    <Box sx={{ position: 'relative', width: '100%', height: mapHeight }}>
+      <IconButton
+        sx={{ position: 'absolute', top: 16, left: 47, zIndex: 1200, background: '#fff', boxShadow: 2 }}
+        onClick={() => setSidebarOpen((open) => !open)}
+        aria-label="Show Deleted Cables Sidebar"
       >
+        <MenuIcon />
+      </IconButton>
+
+      {sidebarOpen && (
+        <Paper
+          elevation={4}
+          sx={{
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            height: '100%',
+            width: 360,
+            zIndex: 1100,
+            display: 'flex',
+            flexDirection: 'column',
+            boxShadow: 4,
+            borderRadius: '8px',
+            overflow: 'hidden',
+            background: 'rgba(255, 255, 255, 0.7)',
+          }}
+        >
+          <DeletedCablesSidebar
+            onSelectCable={(cable) => {
+              if (cable && cable.latitude && cable.longitude && mapRef.current) {
+                mapRef.current.setView([cable.latitude, cable.longitude], 8, { animate: true });
+              }
+            }}
+            lastUpdate={lastUpdate}
+            setLastUpdate={setLastUpdate}
+          />
+        </Paper>
+      )}
+
+      <MapContainer style={{ height: '100%', width: '100%' }} ref={mapRef}>
         <RemoveAttribution />
         <ChangeView center={[18, 134]} zoom={3.5} />
         <TileLayer
@@ -308,56 +294,16 @@ const CableMap: React.FC<CableMapProps> = ({ selectedCable }) => {
           </Typography>
           <Typography variant="h4" color="black">
             {ipopUtilization}
-            {/* {parseFloat(ipopDifference) !== 0 && (
-              <Box
-                sx={(theme) => {
-                  const diff = parseFloat(ipopDifference);
-
-                  return {
-                    display: 'inline-block',
-                    padding: '2px 10px',
-                    borderRadius: '999px',
-                    fontWeight: 'bold',
-                    fontSize: '14px',
-                    backgroundColor:
-                      diff < 0
-                        ? theme.colors.error.lighter
-                        : theme.colors.success.lighter,
-                    color:
-                      diff < 0
-                        ? theme.colors.error.main
-                        : theme.colors.success.main
-                  };
-                }}
-              >
-                {ipopDifference}
-              </Box>
-            )} */}
           </Typography>
         </Box>
-        {/* Dynamic Hoverable Dot Markers*/}
-        <DynamicMarker
-          position={[1.3678, 125.0788]}
-          label="Kauditan, Indonesia"
-        />
-        <DynamicMarker
-          position={[7.0439, 125.542]}
-          label="Davao, Philippines"
-        />
+
+        <DynamicMarker position={[1.3678, 125.0788]} label="Kauditan, Indonesia" />
+        <DynamicMarker position={[7.0439, 125.542]} label="Davao, Philippines" />
         <DynamicMarker position={[13.464717, 144.69305]} label="Piti, Guam" />
-        <DynamicMarker
-          position={[21.4671, 201.7798]}
-          label="Makaha, Hawaii, USA"
-        />
+        <DynamicMarker position={[21.4671, 201.7798]} label="Makaha, Hawaii, USA" />
         <USAMarker />
-        <DynamicMarker
-          position={[14.0679, 120.6262]}
-          label="Nasugbu, Philippines"
-        />
-        <DynamicMarker
-          position={[18.412883, 121.517283]}
-          label="Ballesteros, Philippines"
-        />
+        <DynamicMarker position={[14.0679, 120.6262]} label="Nasugbu, Philippines" />
+        <DynamicMarker position={[18.412883, 121.517283]} label="Ballesteros, Philippines" />
         <JapanMarker />
         <HongkongMarker />
         <SingaporeMarker />
@@ -396,8 +342,36 @@ const CableMap: React.FC<CableMapProps> = ({ selectedCable }) => {
         <C2C />
         <TGNIA />
         <SimulationButton />
+
+        {selectedCable && selectedCutType && (
+          <Marker
+            key={selectedCable.cut_id || `${selectedCable.latitude}-${selectedCable.longitude}`}
+            position={[selectedCable.latitude, selectedCable.longitude]}
+          >
+            <Popup key={selectedCable.cut_id || `${selectedCable.latitude}-${selectedCable.longitude}`}>
+              <Box sx={{ minWidth: 270, p: 1 }}>
+                <Box sx={{ background: '#B71C1C', color: 'white', p: 1, borderRadius: 1, mb: 1, textAlign: 'center' }}>
+                  <Typography variant="h6">{selectedCutType.toUpperCase()}</Typography>
+                </Box>
+                <Typography sx={{ fontWeight: 700, fontSize: '18px', mb: 1 }}>
+                  {selectedCable.distance} km — {selectedCable.cut_id}
+                </Typography>
+                <Typography sx={{ mb: 1 }}>
+                  {formatDate(selectedCable.fault_date)} — Depth: {selectedCable.depth}m
+                </Typography>
+                <Typography sx={{ mb: 1 }}>Cut Type: {selectedCutType}</Typography>
+                <Typography sx={{ mb: 1 }}>Cable Type: {selectedCable.cable_type || 'Unknown'}</Typography>
+                <Typography sx={{ mb: 1 }}>Latitude: {selectedCable.latitude}</Typography>
+                <Typography sx={{ mb: 1 }}>Longitude: {selectedCable.longitude}</Typography>
+                <Box sx={{ mt: 2 }}>
+                  <button style={{ backgroundColor: '#dc3545', color: 'white', border: 'none', padding: '8px 12px', borderRadius: '4px', cursor: 'pointer', fontSize: '14px', fontWeight: 'bold', width: '100%' }}>Delete</button>
+                </Box>
+              </Box>
+            </Popup>
+          </Marker>
+        )}
       </MapContainer>
-    </>
+    </Box>
   );
 };
 
