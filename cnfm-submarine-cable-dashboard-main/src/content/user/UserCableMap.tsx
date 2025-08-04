@@ -313,6 +313,7 @@ const UserCableMap = ({ selectedCable }: UserCableMapProps) => {
             lastUpdate={lastUpdate}
             setLastUpdate={setLastUpdate}
             isAdmin={false} // <-- Hide Delete button for users
+
           />
         </Box>
       )}

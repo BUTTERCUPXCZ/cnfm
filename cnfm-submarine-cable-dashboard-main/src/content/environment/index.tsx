@@ -101,7 +101,7 @@ function SimulationEnvironment() {
                   sx={{
                     position: 'absolute',
                     top: 16,
-                    left: 32,
+                    left: 50,
                     zIndex: 1200,
                     background: '#fff',
                     boxShadow: 2,

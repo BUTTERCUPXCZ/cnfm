@@ -140,17 +140,7 @@ function SimulatorDashboard() {
                         </Box>
                       ))}
                     </Box>
-                    {/* Toggle Button for Sidebar */}
-                    <Box sx={{ position: 'absolute', top: 16, left: 32, zIndex: 1200 }}>
-                      <Button
-                        variant="contained"
-                        sx={{ minWidth: 0, p: 1, background: '#fff', boxShadow: 2 }}
-                        onClick={() => setSidebarOpen((open) => !open)}
-                        aria-label="Show Deleted Cables Sidebar"
-                      >
-                        <span style={{ fontSize: 24, color: '#3854A5' }}>&#9776;</span>
-                      </Button>
-                    </Box>
+
                     {/* Sidebar Overlay inside the map */}
                     {sidebarOpen && (
                       <Box
