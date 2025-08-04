@@ -216,26 +216,38 @@ function RPLSeaUS6() {
 
         if (Array.isArray(result) && result.length > 0) {
           const markerData = result
-            .filter(
-              (item: any) =>
-                item.event &&
-                typeof item.event === 'string' &&
-                (item.event.includes('BMH') ||
-                  item.event.includes('S6R') ||
-                  item.event.includes('BU'))
-            )
+            .filter((item: any) => {
+              const hasEvent =
+                (item.event && typeof item.event === 'string' &&
+                  (item.event.includes('BMH') ||
+                  item.event.includes('BU2') ||
+                  item.event.includes('S6R'))) ||
+                (item.repeater && typeof item.repeater === 'string' &&
+                  item.repeater.includes('S6R'));
+
+              return hasEvent;
+            })
             .map((item: any) => {
-              const [normalizedLat, normalizedLng] = normalizeCoordinates(
-                item.full_latitude,
-                item.full_longitude,
-                'US'
-              );
+              // Extract coordinates from multiple possible fields
+              const lat = item.full_latitude ?? item.latitude ?? item.lat;
+              const lng = item.full_longitude ?? item.longitude ?? item.lng ?? item.lon;
+
+              const parsedLat = typeof lat === 'string' ? parseFloat(lat) : lat;
+              const parsedLng = typeof lng === 'string' ? parseFloat(lng) : lng;
+
               return {
-                latitude: normalizedLat,
-                longitude: normalizedLng,
-                label: item.event
+                latitude: parsedLat,
+                longitude: parsedLng,
+                label: item.repeater || item.event
               };
-            });
+            })
+            .filter(
+              (marker) =>
+                typeof marker.latitude === 'number' &&
+                typeof marker.longitude === 'number' &&
+                !isNaN(marker.latitude) &&
+                !isNaN(marker.longitude)
+            );
 
           setMarkers(markerData);
         }
@@ -243,6 +255,7 @@ function RPLSeaUS6() {
         console.error('Error fetching marker data:', err);
       }
     };
+
 
     const fetchAllData = async () => {
       await fetchPolylineData();

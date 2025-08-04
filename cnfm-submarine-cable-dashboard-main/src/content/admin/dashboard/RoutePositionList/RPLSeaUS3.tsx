@@ -206,27 +206,47 @@ function RPLSeaUS3() {
         const result = await response.json();
 
         if (Array.isArray(result) && result.length > 0) {
-          // Process marker data - filter for events containing "S1R"
           const markerData = result
+            .filter((item: any) => {
+              const hasEvent =
+                (item.event && typeof item.event === 'string' &&
+                  (item.event.includes('BMH') ||
+                  item.event.includes('BU') ||
+                  item.event.includes('S3R'))) ||  // <-- Added S3R here
+                (item.repeater && typeof item.repeater === 'string' &&
+                  item.repeater.includes('S3R'));  // <-- Added repeater check
+
+              return hasEvent;
+            })
+            .map((item: any) => {
+              // Extract coordinates from multiple possible fields
+              const lat = item.full_latitude ?? item.latitude ?? item.lat;
+              const lng = item.full_longitude ?? item.longitude ?? item.lng ?? item.lon;
+
+              const parsedLat = typeof lat === 'string' ? parseFloat(lat) : lat;
+              const parsedLng = typeof lng === 'string' ? parseFloat(lng) : lng;
+
+              return {
+                latitude: parsedLat,
+                longitude: parsedLng,
+                label: item.repeater || item.event
+              };
+            })
             .filter(
-              (item: any) =>
-                item.event &&
-                typeof item.event === 'string' &&
-                (item.event.includes('BMH') || item.event.includes('BU'))
-            )
-            .map((item: any) => ({
-              latitude: item.full_latitude,
-              longitude: item.full_longitude,
-              label: item.event
-            }));
+              (marker) =>
+                typeof marker.latitude === 'number' &&
+                typeof marker.longitude === 'number' &&
+                !isNaN(marker.latitude) &&
+                !isNaN(marker.longitude)
+            );
 
           setMarkers(markerData);
-        } else {
         }
       } catch (err) {
         console.error('Error fetching marker data:', err);
       }
     };
+
 
     // Fetch both types of data
     const fetchAllData = async () => {
