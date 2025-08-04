@@ -1,6 +1,6 @@
 const express = require('express');
 const fs = require('fs');
-const mysql = require('mysql');
+const mysql = require('mysql');d
 const cors = require('cors');
 const bodyParser = require('body-parser');
 const argon2 = require('argon2');
