@@ -270,6 +270,7 @@ CREATE TABLE `sea_us_rpl_s2` (
   `cable_type` varchar(256) NOT NULL,
   `cumulative_by_type` varchar(256) NOT NULL,
   `cable_totals_by_type` varchar(256) NOT NULL,
+  `body_type` varchar(256) NOT NULL,
   `approx_depth` varchar(256) NOT NULL,
   `lay_direction` varchar(256) NOT NULL,
   `lay_vessel` varchar(256) NOT NULL,

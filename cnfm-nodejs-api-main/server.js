@@ -1,6 +1,6 @@
 const express = require('express');
 const fs = require('fs');
-const mysql = require('mysql');d
+const mysql = require('mysql');
 const cors = require('cors');
 const bodyParser = require('body-parser');
 const argon2 = require('argon2');
@@ -1090,7 +1090,7 @@ const sea_us_2_headers = [
   'difference_in_edist', 'difference_in_longitude', 'course',
   'distance_in_nmiles', 'bearing', 'between_positions', 'cumulative_total',
   'slack', 'cable_between_positions', 'cable_cumulative_total', 'cable_type',
-  'cumulative_by_type', 'cable_totals_by_type', 'approx_depth',
+  'cumulative_by_type', 'cable_totals_by_type', 'body_type', 'approx_depth',
   'lay_direction', 'lay_vessel', 'date_installed', 'burial_method',
   'burial_depth', 'route_features', 'a', 'aa', 'ee'
 ];
@@ -1264,7 +1264,7 @@ app.post('/upload-rpl/:cable/:segment', upload.single('file'), (req, res) => {
                 difference_in_mps, difference_in_edist, difference_in_longitude, 
                 course, distance_in_nmiles, bearing, between_positions, cumulative_total, 
                 slack, cable_between_positions, cable_cumulative_total, cable_type, 
-                cumulative_by_type, cable_totals_by_type, approx_depth, lay_direction, 
+                cumulative_by_type, cable_totals_by_type, body_type, approx_depth, lay_direction, 
                 lay_vessel, date_installed, burial_method, burial_depth, route_features, 
                 a, aa, ee
               ) VALUES ?`;
@@ -1279,7 +1279,7 @@ app.post('/upload-rpl/:cable/:segment', upload.single('file'), (req, res) => {
               row.course || null, row.distance_in_nmiles || null, row.bearing || null,
               row.between_positions || null, row.cumulative_total || null, row.slack || null,
               row.cable_between_positions || null, row.cable_cumulative_total || null, row.cable_type || null,
-              row.cumulative_by_type || null, row.cable_totals_by_type || null, row.approx_depth || null,
+              row.cumulative_by_type || null, row.cable_totals_by_type || null, row.body_type || null, row.approx_depth || null,
               row.lay_direction || null, row.lay_vessel || null, row.date_installed || null,
               row.burial_method || null, row.burial_depth || null, row.route_features || null,
               row.a || null, row.aa || null, row.ee || null
