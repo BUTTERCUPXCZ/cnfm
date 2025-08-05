@@ -31,16 +31,26 @@ interface DeletedCablesSidebarProps {
     setLastUpdate?: (val: string) => void;
     phTime?: string;
     isAdmin?: boolean; // <-- Add this prop
+    isUser?: boolean; // <-- Add this prop
 }
 
 const TOAST_AUTO_HIDE = 7000; // ms
+
+// Add this mapping above your component
+const CUT_TYPE_COLORS: Record<string, string> = {
+    'FULL CUT': '#B71C1C',              // Deep Red
+    'FIBER BREAK': '#F44336',           // Red
+    'PARTIAL FIBER BREAK': '#FF9800',   // Orange
+    'SHUNT FAULT': '#FFD54F',           // Yellow
+};
 
 const DeletedCablesSidebar: React.FC<DeletedCablesSidebarProps> = ({
     onSelectCable,
     lastUpdate,
     setLastUpdate,
     phTime,
-    isAdmin = true // <-- Default to true for admin pages
+    isAdmin = true, // <-- Default to true for admin pages
+    isUser = true // <-- Default to true for user pages
 }) => {
     const [deletedCables, setDeletedCables] = useState<CableCut[]>([]);
     const [loading, setLoading] = useState(true);
@@ -257,83 +267,119 @@ const DeletedCablesSidebar: React.FC<DeletedCablesSidebarProps> = ({
                 }}
             >
                 {toastCable && (
-                    <Alert
-                        severity="info"
+                    <Box
                         sx={{
-                            minWidth: 340,
-                            maxWidth: 400,
-                            boxShadow: 6,
+                            minWidth: 100,
+                            maxWidth: 300,
                             borderRadius: 2,
-                            background: '#f9fafb',
+                            background: '#fff',
                             color: '#1a2a4b',
-                            alignItems: 'flex-start',
-                            p: 2.5,
-                            pr: 4,
+                            boxShadow: 6,
+
+                            p: 0,
                             position: 'relative',
                             fontSize: 16,
-                            lineHeight: 1.7
+                            lineHeight: 1.7,
                         }}
-                        action={
-                            <IconButton
-                                size="small"
-                                aria-label="close"
-                                color="inherit"
-                                onClick={handleCloseToast}
-                                sx={{ position: 'absolute', top: 8, right: 8 }}
-                            >
-                                <CloseIcon fontSize="small" />
-                            </IconButton>
-                        }
                     >
-                        <Typography variant="h6" sx={{ fontWeight: 800, color: '#B71C1C', mb: 1, fontSize: 20 }}>
-                            {toastCable.cut_type?.toUpperCase() || 'FULL CUT'}
-                        </Typography>
-                        <Typography sx={{ mb: 0.5, fontSize: 16 }}>
-                            <b>Distance:</b> <span style={{ fontWeight: 600 }}>{toastCable.distance ? `${toastCable.distance.toLocaleString()} km` : 'N/A'}</span>
-                        </Typography>
-                        <Typography sx={{ mb: 0.5, fontSize: 16 }}>
-                            <b>Depth:</b> <span style={{ fontWeight: 600 }}>{toastCable.depth ? `${toastCable.depth} m` : 'N/A'}</span>
-                        </Typography>
-                        <Typography sx={{ mb: 0.5, fontSize: 16 }}>
-                            <b>Latitude:</b> <span style={{ fontWeight: 600 }}>{toastCable.latitude || 'N/A'}</span>
-                        </Typography>
-                        <Typography sx={{ mb: 0.5, fontSize: 16 }}>
-                            <b>Longitude:</b> <span style={{ fontWeight: 600 }}>{toastCable.longitude || 'N/A'}</span>
-                        </Typography>
-                        <Typography sx={{ mb: 0.5, fontSize: 16 }}>
-                            <b>Cable Type:</b> <span style={{ fontWeight: 600 }}>{toastCable.cable_type || 'Unknown'}</span>
-                        </Typography>
-                        <Typography sx={{ mb: 1, fontSize: 16 }}>
-                            <b>Fault Date:</b> <span style={{ fontWeight: 600 }}>{formatDate(toastCable.fault_date)}</span>
-                        </Typography>
-                        <Box sx={{ display: 'flex', gap: 1, mt: 1 }}>
-                            {isAdmin && (
+                        {/* Colored header bar */}
+                        <Box
+                            sx={{
+                                width: '100%',
+                                height: 40,
+                                background: CUT_TYPE_COLORS[(toastCable.cut_type || 'FULL CUT').toUpperCase()] || '#B71C1C',
+                                borderTopLeftRadius: 8,
+                                borderTopRightRadius: 8,
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                mb: 0,
+                            }}
+                        >
+                            <Typography
+                                variant="h6"
+                                sx={{
+                                    fontWeight: 800,
+                                    color: '#fff',
+                                    fontSize: 20,
+                                    letterSpacing: 1,
+                                    textAlign: 'center',
+                                }}
+                            >
+                                {(toastCable.cut_type || 'FULL CUT').toUpperCase()}
+                            </Typography>
+                        </Box>
+                        {/* Close button */}
+                        <IconButton
+                            size="small"
+                            aria-label="close"
+                            color="inherit"
+                            onClick={handleCloseToast}
+                            sx={{ position: 'absolute', top: 6, right: 6, zIndex: 2 }}
+                        >
+                            <CloseIcon fontSize="small" />
+                        </IconButton>
+                        {/* Details */}
+                        <Box sx={{ p: 2.5, pt: 2 }}>
+                            <Typography sx={{ mb: 0.5, fontSize: 16 }}>
+                                <b>Distance:</b> <span style={{ fontWeight: 500 }}>{toastCable.distance ? `${toastCable.distance.toLocaleString()} km` : 'N/A'}</span>
+                            </Typography>
+                            <Typography sx={{ mb: 0.5, fontSize: 16 }}>
+                                <b>Depth:</b> <span style={{ fontWeight: 500 }}>{toastCable.depth ? `${toastCable.depth} m` : 'N/A'}</span>
+                            </Typography>
+                            <Typography sx={{ mb: 0.5, fontSize: 16 }}>
+                                <b>Latitude:</b> <span style={{ fontWeight: 500 }}>{toastCable.latitude || 'N/A'}</span>
+                            </Typography>
+                            <Typography sx={{ mb: 0.5, fontSize: 16 }}>
+                                <b>Longitude:</b> <span style={{ fontWeight: 500 }}>{toastCable.longitude || 'N/A'}</span>
+                            </Typography>
+                            <Typography sx={{ mb: 0.5, fontSize: 16 }}>
+                                <b>Cable Type:</b> <span style={{ fontWeight: 500 }}>{toastCable.cable_type || 'Unknown'}</span>
+                            </Typography>
+                            <Typography sx={{ mb: 2, fontSize: 16 }}>
+                                <b>Fault Date:</b> <span style={{ fontWeight: 500 }}>{formatDate(toastCable.fault_date)}</span>
+                            </Typography>
+
+                            {isAdmin && isUser && (
                                 <Button
                                     variant="contained"
                                     color="error"
-                                    size="small"
+                                    size="medium"
+                                    fullWidth
                                     onClick={() => handleDeleteCable(toastCable)}
-                                    sx={{ fontWeight: 'bold', textTransform: 'none', fontSize: 15 }}
+                                    sx={{
+                                        fontWeight: 'bold',
+                                        textTransform: 'none',
+                                        fontSize: 16,
+                                        borderRadius: 1,
+                                        mt: 1,
+                                        mb: 1,
+                                        background: '#B71C1C',
+                                        '&:hover': { background: '#a31515' },
+                                    }}
                                 >
                                     Delete
                                 </Button>
                             )}
                             <Button
                                 variant="outlined"
-                                size="small"
+                                size="medium"
+                                fullWidth
                                 onClick={handleCloseToast}
                                 sx={{
                                     color: '#3854A5',
                                     borderColor: '#3854A5',
                                     fontWeight: 'bold',
                                     textTransform: 'none',
-                                    fontSize: 15
+                                    fontSize: 16,
+                                    borderRadius: 1,
+                                    mb: 1,
                                 }}
                             >
                                 Close
                             </Button>
                         </Box>
-                    </Alert>
+                    </Box>
                 )}
             </Snackbar>
         </>

@@ -12,6 +12,7 @@ import Header from 'src/components/Header';
 import React, { useCallback, useEffect, useState } from 'react';
 import UserCableMap from './UserCableMap';
 
+
 const legendItems = [
   { name: 'TGN-IA', color: 'yellow' },
   { name: 'SJC', color: 'blue' },
@@ -79,7 +80,7 @@ function UserDashboard() {
   return (
     <>
       <Helmet>
-        <title>Main Dashboard</title>
+        <title>User Dashboard</title>
       </Helmet>
 
       <Box
@@ -102,7 +103,6 @@ function UserDashboard() {
                 <Grid item xs={12}>
                   <Box p={4}>
                     <Header />
-                    {/* Legend */}
                     <Box
                       sx={{
                         display: 'flex',

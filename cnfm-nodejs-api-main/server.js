@@ -133,6 +133,16 @@ app.get('/fetch-cable-cuts', (req, res) => {
   });
 });
 
+// ✅ Define your allowed segment tables
+const segmentTables = [
+  'sea_us_rpl_s1', 'sea_us_rpl_s2', 'sea_us_rpl_s3', 'sea_us_rpl_s4', 'sea_us_rpl_s5', 'sea_us_rpl_s6',
+  'sjc_rpl_s1', 'sjc_rpl_s2', 'sjc_rpl_s3', 'sjc_rpl_s4', 'sjc_rpl_s5', 'sjc_rpl_s6',
+  'sjc_rpl_s7', 'sjc_rpl_s8', 'sjc_rpl_s9', 'sjc_rpl_s10', 'sjc_rpl_s11', 'sjc_rpl_s12', 'sjc_rpl_s13',
+  'tgnia_rpl_s1', 'tgnia_rpl_s2', 'tgnia_rpl_s3', 'tgnia_rpl_s4', 'tgnia_rpl_s5', 'tgnia_rpl_s6',
+  'tgnia_rpl_s7', 'tgnia_rpl_s8', 'tgnia_rpl_s9', 'tgnia_rpl_s10', 'tgnia_rpl_s11', 'tgnia_rpl_s12'
+];
+
+
 // API: Insert all cable cuts data
 app.post('/cable-cuts', (req, res) => {
   const { cut_id, distance, cut_type, fault_date, simulated, latitude, longitude, depth } = req.body;
@@ -179,6 +189,7 @@ app.post('/cable-cuts', (req, res) => {
     });
   });
 });
+
 
 // API: Get TGN-IA RPL data with valid coordinates and non-empty date_installed
 app.get('/tgnia-rpl-s1', (req, res) => {
