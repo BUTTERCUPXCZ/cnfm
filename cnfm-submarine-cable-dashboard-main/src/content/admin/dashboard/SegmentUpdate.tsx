@@ -18,6 +18,7 @@ import CableIcon from '@mui/icons-material/Cable';
 import { CloudUpload } from '@mui/icons-material';
 import Swal from 'sweetalert2';
 
+
 const SegmentUpdate = () => {
   const [open, setOpen] = useState(false);
   const [selectedCable, setSelectedCable] = useState('');
@@ -41,7 +42,7 @@ const SegmentUpdate = () => {
         { id: 's1', name: 'Kauditan, Indonesia - BU (Segment 1)' },
         { id: 's2', name: 'Davao, Philippines - BU (Segment 2)' },
         { id: 's3', name: 'Piti, Guam - BU Davao (Segment 3)' },
-        { id: 's4', name: 'Piti, Guam - BU Hawaii (Segment 4)'},
+        { id: 's4', name: 'Piti, Guam - BU Hawaii (Segment 4)' },
         { id: 's5', name: 'Makaha, Hawaii - BU (Segment 5)' },
         { id: 's6', name: 'BMH - BU2 (Segment 6)' }
       ],
@@ -166,6 +167,19 @@ const SegmentUpdate = () => {
         // Reset form after successful upload
         setSelectedFile(null);
         handleClose();
+
+        // Force a brief delay to allow database to fully commit the changes
+        // before RPL components start fetching updated data
+        setTimeout(() => {
+          // Trigger a custom event to notify RPL components to refresh
+          window.dispatchEvent(new CustomEvent('rplDataUpdated', {
+            detail: {
+              cable: selectedCable,
+              segment: selectedSegment,
+              tableName: data.tableName
+            }
+          }));
+        }, 1000);
       } else {
         throw new Error(
           data.message || `HTTP ${response.status}: Upload failed`
