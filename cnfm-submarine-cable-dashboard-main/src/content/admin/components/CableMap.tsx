@@ -1,5 +1,7 @@
 import { Box, Typography, IconButton, Paper } from '@mui/material';
 import MenuIcon from '@mui/icons-material/Menu';
+import InfoIcon from '@mui/icons-material/Info';
+import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import { MapContainer, TileLayer, useMap, Marker, Popup } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
 import { useEffect, useRef, useState } from 'react';
@@ -14,6 +16,7 @@ import SingaporeMarker from './SingaporeMarker';
 import USAMarker from './USAMarker';
 import SimulationButton from 'src/content/environment/components/SimulationButton';
 import DeletedCablesSidebar from './DeletedCablesSidebar';
+import HideToolTip from './HideToolTip';
 import RPLSeaUS1 from '../dashboard/RoutePositionList/RPLSeaUS1';
 import RPLSeaUS2 from '../dashboard/RoutePositionList/RPLSeaUS2';
 import RPLSeaUS3 from '../dashboard/RoutePositionList/RPLSeaUS3';
@@ -133,6 +136,8 @@ const CableMap: React.FC<CableMapProps> = ({ selectedCable, selectedCutType }) =
   const mapApiKey = process.env.REACT_APP_GEOAPIFY_API_KEY;
 
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [rightSidebarOpen, setRightSidebarOpen] = useState(false);
   const [lastUpdate, setLastUpdate] = useState<string | null>(null);
   const mapRef = useRef<any>(null);
 
@@ -224,14 +229,25 @@ const CableMap: React.FC<CableMapProps> = ({ selectedCable, selectedCutType }) =
 
   return (
     <Box sx={{ position: 'relative', width: '100%', height: mapHeight }}>
+      {/* Left sidebar toggle button */}
       <IconButton
-        sx={{ position: 'absolute', top: 16, left: 47, zIndex: 1200, background: '#fff', boxShadow: 2 }}
+        sx={{ position: 'absolute', top: 16, left: 16, zIndex: 1200, background: '#fff', boxShadow: 2 }}
         onClick={() => setSidebarOpen((open) => !open)}
         aria-label="Show Deleted Cables Sidebar"
       >
         <MenuIcon />
       </IconButton>
 
+      {/* Right sidebar toggle button */}
+      <IconButton
+        sx={{ position: 'absolute', top: 16, right: 16, zIndex: 1200, background: '#fff', boxShadow: 2 }}
+        onClick={() => setRightSidebarOpen((open) => !open)}
+        aria-label="Show Info Sidebar"
+      >
+        <InfoIcon />
+      </IconButton>
+
+      {/* Left Sidebar - Deleted Cables */}
       {sidebarOpen && (
         <Paper
           elevation={4}
@@ -259,6 +275,29 @@ const CableMap: React.FC<CableMapProps> = ({ selectedCable, selectedCutType }) =
             lastUpdate={lastUpdate}
             setLastUpdate={setLastUpdate}
           />
+        </Paper>
+      )}
+
+      {/* Right Sidebar - HideToolTip */}
+      {rightSidebarOpen && (
+        <Paper
+          elevation={4}
+          sx={{
+            position: 'absolute',
+            top: 0,
+            right: 0,
+            height: '100%',
+            width: 360,
+            zIndex: 1100,
+            display: 'flex',
+            flexDirection: 'column',
+            boxShadow: 4,
+            borderRadius: '8px',
+            overflow: 'hidden',
+            background: 'rgba(255, 255, 255, 0.9)',
+          }}
+        >
+          <HideToolTip />
         </Paper>
       )}
 
