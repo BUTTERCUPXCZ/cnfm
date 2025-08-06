@@ -307,34 +307,44 @@ const CableMap: React.FC<CableMapProps> = ({ selectedCable, selectedCutType }) =
         <TileLayer
           url={`https://maps.geoapify.com/v1/tile/klokantech-basic/{z}/{x}/{y}.png?apiKey=${mapApiKey}`}
         />
+
+        {/* Capacity and Utilization Display Box */}
         <Box
           sx={{
             position: 'absolute',
             top: 10,
             right: 10,
-            backgroundColor: 'rgba(255, 255, 255, 0.7)',
-            color: 'white',
-            padding: '8px 12px',
+            backgroundColor: 'rgba(255, 255, 255, 0.9)',
+            color: 'black',
+            padding: '12px 16px',
             borderRadius: '8px',
             zIndex: 1000,
             fontSize: '14px',
-            flexDirection: 'row'
+            boxShadow: 3,
+            border: '1px solid rgba(0,0,0,0.1)'
           }}
         >
-          <Typography variant="caption" color="gray">
-            Capacity:
-          </Typography>
-          <Typography variant="h4" color="black">
-            {stats.totalGbps} Gbps
-          </Typography>
+          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+            <Box>
+              <Typography variant="caption" color="gray" sx={{ fontSize: '11px', fontWeight: 600 }}>
+                Capacity:
+              </Typography>
+              <Typography variant="h6" color="black" sx={{ fontWeight: 700, lineHeight: 1 }}>
+                {stats.totalGbps} Gbps
+              </Typography>
+            </Box>
 
-          <Typography variant="caption" color="gray">
-            Average Utilization:
-          </Typography>
-          <Typography variant="h4" color="black">
-            {ipopUtilization}
-          </Typography>
+            <Box>
+              <Typography variant="caption" color="gray" sx={{ fontSize: '11px', fontWeight: 600 }}>
+                Average Utilization:
+              </Typography>
+              <Typography variant="h6" color="black" sx={{ fontWeight: 700, lineHeight: 1 }}>
+                {ipopUtilization}
+              </Typography>
+            </Box>
+          </Box>
         </Box>
+
 
         <DynamicMarker position={[1.3678, 125.0788]} label="Kauditan, Indonesia" />
         <DynamicMarker position={[7.0439, 125.542]} label="Davao, Philippines" />
