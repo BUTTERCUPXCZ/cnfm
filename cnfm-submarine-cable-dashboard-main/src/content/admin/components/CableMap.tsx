@@ -308,42 +308,7 @@ const CableMap: React.FC<CableMapProps> = ({ selectedCable, selectedCutType }) =
           url={`https://maps.geoapify.com/v1/tile/klokantech-basic/{z}/{x}/{y}.png?apiKey=${mapApiKey}`}
         />
 
-        {/* Capacity and Utilization Display Box */}
-        <Box
-          sx={{
-            position: 'absolute',
-            top: 10,
-            right: 10,
-            backgroundColor: 'rgba(255, 255, 255, 0.9)',
-            color: 'black',
-            padding: '12px 16px',
-            borderRadius: '8px',
-            zIndex: 1000,
-            fontSize: '14px',
-            boxShadow: 3,
-            border: '1px solid rgba(0,0,0,0.1)'
-          }}
-        >
-          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
-            <Box>
-              <Typography variant="caption" color="gray" sx={{ fontSize: '11px', fontWeight: 600 }}>
-                Capacity:
-              </Typography>
-              <Typography variant="h6" color="black" sx={{ fontWeight: 700, lineHeight: 1 }}>
-                {stats.totalGbps} Gbps
-              </Typography>
-            </Box>
 
-            <Box>
-              <Typography variant="caption" color="gray" sx={{ fontSize: '11px', fontWeight: 600 }}>
-                Average Utilization:
-              </Typography>
-              <Typography variant="h6" color="black" sx={{ fontWeight: 700, lineHeight: 1 }}>
-                {ipopUtilization}
-              </Typography>
-            </Box>
-          </Box>
-        </Box>
 
 
         <DynamicMarker position={[1.3678, 125.0788]} label="Kauditan, Indonesia" />
@@ -356,7 +321,7 @@ const CableMap: React.FC<CableMapProps> = ({ selectedCable, selectedCutType }) =
         <JapanMarker />
         <HongkongMarker />
         <SingaporeMarker />
-        <SeaUS />
+
         <RPLSeaUS1 />
         <RPLSeaUS2 />
         <RPLSeaUS3 />
@@ -387,9 +352,7 @@ const CableMap: React.FC<CableMapProps> = ({ selectedCable, selectedCutType }) =
         <RPLTGNIA10 />
         <RPLTGNIA11 />
         <RPLTGNIA12 />
-        <SJC />
         <C2C />
-        <TGNIA />
         <SimulationButton />
 
         {selectedCable && selectedCutType && (

@@ -1,9 +1,71 @@
 import React, { useEffect, useState } from 'react';
-import { Box, Typography, Paper, Chip, IconButton, Tooltip } from '@mui/material';
+import {
+    Box,
+    Typography,
+    Paper,
+    Chip,
+    IconButton,
+    Tooltip,
+    Dialog,
+    DialogTitle,
+    DialogContent,
+    DialogActions,
+    Button,
+    Divider,
+    CardContent,
+    Tabs,
+    Tab
+} from '@mui/material';
 import RefreshIcon from '@mui/icons-material/Refresh';
 import TrendingUpIcon from '@mui/icons-material/TrendingUp';
 import TrendingDownIcon from '@mui/icons-material/TrendingDown';
 import SignalCellularAltIcon from '@mui/icons-material/SignalCellularAlt';
+
+// Import the individual chart components
+import TGNSingapore from '../charts/TGNIA/TGNSingapore';
+import TGNHongkong from '../charts/TGNIA/TGNHongkong';
+import TGNJapan from '../charts/TGNIA/TGNJapan';
+import SJCSingapore from '../charts/SJC/SJCSingapore';
+import SJCHongkong from '../charts/SJC/SJCHongkong';
+import SJCJapan from '../charts/SJC/SJCJapan';
+import Seattle from '../charts/SeaUS/Seattle';
+import LosAngeles from '../charts/SeaUS/LosAngeles';
+import C2CSingapore from '../charts/C2C/C2CSingapore';
+import C2CHongkong from '../charts/C2C/C2CHongkong';
+import C2CJapan from '../charts/C2C/C2CJapan';
+
+interface TabPanelProps {
+    children?: React.ReactNode;
+    index: number;
+    value: number;
+}
+
+function TabPanel(props: TabPanelProps) {
+    const { children, value, index, ...other } = props;
+
+    return (
+        <div
+            role="tabpanel"
+            hidden={value !== index}
+            id={`simple-tabpanel-${index}`}
+            aria-labelledby={`simple-tab-${index}`}
+            {...other}
+        >
+            {value === index && (
+                <Box sx={{ p: 2 }}>
+                    <Typography>{children}</Typography>
+                </Box>
+            )}
+        </div>
+    );
+}
+
+function a11yProps(index: number) {
+    return {
+        id: `simple-tab-${index}`,
+        'aria-controls': `simple-tabpanel-${index}`
+    };
+}
 
 interface CableSystemData {
     name: string;
@@ -12,6 +74,7 @@ interface CableSystemData {
     totalUtilization: number;
     avgUtilization: number;
     activeSegments: number;
+    zeroUtilizationCount: number;
     segments: Array<{
         name: string;
         capacity: number;
@@ -33,15 +96,21 @@ const HideToolTip = () => {
         zeroUtilizationCount: 0
     });
 
+    // Modal state management
+    const [open, setOpen] = useState(false);
+    const [selectedSystem, setSelectedSystem] = useState<CableSystemData | null>(null);
+    const [tabValue, setTabValue] = useState(0);
+
     // Four main cable systems matching the map tooltips
     const [cableSystemsData, setCableSystemsData] = useState<CableSystemData[]>([
         {
             name: 'TGN-IA',
-            color: '#FFD700', // Yellow
+            color: '#B8860B', // Gold
             totalCapacity: 0,
             totalUtilization: 0,
             avgUtilization: 0,
             activeSegments: 0,
+            zeroUtilizationCount: 0,
             segments: [
                 { name: 'Hong Kong', capacity: 0, utilization: 0, endpoint: '/tgnia-hongkong' },
                 { name: 'Japan', capacity: 0, utilization: 0, endpoint: '/tgnia-japan' },
@@ -56,6 +125,7 @@ const HideToolTip = () => {
             totalUtilization: 0,
             avgUtilization: 0,
             activeSegments: 0,
+            zeroUtilizationCount: 0,
             segments: [
                 { name: 'Hong Kong', capacity: 0, utilization: 0, endpoint: '/sjc-hongkong' },
                 { name: 'Japan', capacity: 0, utilization: 0, endpoint: '/sjc-japan' },
@@ -70,6 +140,7 @@ const HideToolTip = () => {
             totalUtilization: 0,
             avgUtilization: 0,
             activeSegments: 0,
+            zeroUtilizationCount: 0,
             segments: [
                 { name: 'Seattle', capacity: 0, utilization: 0, endpoint: '/sea-us-seattle' },
                 { name: 'Los Angeles', capacity: 0, utilization: 0, endpoint: '/sea-us-la' }
@@ -83,6 +154,7 @@ const HideToolTip = () => {
             totalUtilization: 0,
             avgUtilization: 0,
             activeSegments: 0,
+            zeroUtilizationCount: 0,
             segments: [
                 { name: 'Hong Kong', capacity: 0, utilization: 0, endpoint: '/c2c-hongkong' },
                 { name: 'Japan', capacity: 0, utilization: 0, endpoint: '/c2c-japan' },
@@ -117,13 +189,14 @@ const HideToolTip = () => {
                         return {
                             ...segment,
                             capacity: totalCapacity,
-                            utilization: avgUtilization
+                            utilization: avgUtilization,
+                            rawData: result // Store raw data for zero utilization counting
                         };
                     }
                 } catch (error) {
                     console.error(`Error fetching ${system.name} ${segment.name}:`, error);
                 }
-                return segment;
+                return { ...segment, rawData: [] };
             })
         );
 
@@ -133,13 +206,25 @@ const HideToolTip = () => {
         const avgUtilization = updatedSegments.length > 0 ? parseFloat((totalUtilization / updatedSegments.length).toFixed(2)) : 0;
         const activeSegments = updatedSegments.filter(seg => seg.utilization > 0).length;
 
+        // Calculate zero utilization count from all raw data
+        const allRawData = updatedSegments.flatMap(seg => seg.rawData || []);
+        const zeroUtilizationCount = allRawData.filter(item =>
+            (item.percent_utilization || item.percent || 0) === 0
+        ).length;
+
         return {
             ...system,
-            segments: updatedSegments,
+            segments: updatedSegments.map(seg => ({
+                name: seg.name,
+                capacity: seg.capacity,
+                utilization: seg.utilization,
+                endpoint: seg.endpoint
+            })), // Remove rawData from segments
             totalCapacity,
             totalUtilization,
             avgUtilization,
             activeSegments,
+            zeroUtilizationCount,
             lastUpdate: new Date()
         };
     };
@@ -256,6 +341,57 @@ const HideToolTip = () => {
             console.error('Error refreshing data:', error);
         } finally {
             setIsLoading(false);
+        }
+    };
+
+    // Modal handler functions
+    const handleSystemClick = (system: CableSystemData) => {
+        setSelectedSystem(system);
+        setTabValue(0); // Reset to first tab
+        setOpen(true);
+    };
+
+    const handleClose = () => {
+        setOpen(false);
+        setSelectedSystem(null);
+    };
+
+    const handleTabChange = (event: React.SyntheticEvent, newValue: number) => {
+        setTabValue(newValue);
+    };
+
+    // Function to render the appropriate chart component based on system and segment
+    const renderChartComponent = (systemName: string, segmentIndex: number) => {
+        switch (systemName) {
+            case 'TGN-IA':
+                switch (segmentIndex) {
+                    case 0: return <TGNSingapore />;
+                    case 1: return <TGNHongkong />;
+                    case 2: return <TGNJapan />;
+                    default: return <TGNSingapore />;
+                }
+            case 'SJC':
+                switch (segmentIndex) {
+                    case 0: return <SJCSingapore />;
+                    case 1: return <SJCHongkong />;
+                    case 2: return <SJCJapan />;
+                    default: return <SJCSingapore />;
+                }
+            case 'SEA-US':
+                switch (segmentIndex) {
+                    case 0: return <Seattle />;
+                    case 1: return <LosAngeles />;
+                    default: return <Seattle />;
+                }
+            case 'C2C':
+                switch (segmentIndex) {
+                    case 0: return <C2CSingapore />;
+                    case 1: return <C2CHongkong />;
+                    case 2: return <C2CJapan />;
+                    default: return <C2CSingapore />;
+                }
+            default:
+                return <div>No data available</div>;
         }
     };
 
@@ -405,126 +541,205 @@ const HideToolTip = () => {
             </Typography>
 
             {cableSystemsData.map((system, index) => (
-                <Paper
-                    key={system.name}
-                    sx={{
-                        background: `linear-gradient(135deg, ${system.color}20 0%, ${system.color}10 100%)`,
-                        p: 2,
-                        borderRadius: 2,
-                        boxShadow: 2,
-                        mb: 2,
-                        width: '100%',
-                        maxWidth: 280,
-                        border: `2px solid ${system.color}`,
-                        position: 'relative'
-                    }}
-                >
-                    {/* System Color Indicator */}
-                    <Box
+                <Tooltip key={system.name} title="Click to view Individual Link Utilization" placement="top">
+                    <Paper
+                        onClick={() => handleSystemClick(system)}
                         sx={{
-                            position: 'absolute',
-                            top: -8,
-                            right: -8,
-                            background: system.color,
-                            color: 'white',
-                            borderRadius: '50%',
-                            width: 24,
-                            height: 24,
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            fontSize: '12px',
-                            fontWeight: 700,
-                            boxShadow: 2
+                            background: `linear-gradient(135deg, ${system.color}20 0%, ${system.color}10 100%)`,
+                            p: 2,
+                            borderRadius: 2,
+                            boxShadow: 2,
+                            mb: 2,
+                            width: '100%',
+                            maxWidth: 280,
+                            border: `2px solid ${system.color}`,
+                            position: 'relative',
+                            cursor: 'pointer',
+                            transition: 'all 0.2s ease-in-out',
+                            '&:hover': {
+                                boxShadow: 4,
+                                transform: 'translateY(-2px)',
+                                background: `linear-gradient(135deg, ${system.color}30 0%, ${system.color}20 100%)`
+                            }
                         }}
                     >
-                        {index + 1}
-                    </Box>
-
-                    {/* System Header */}
-                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-                        <Typography variant="h6" sx={{ fontWeight: 700, color: system.color }}>
-                            {system.name}
-                        </Typography>
-                        <Chip
-                            label={`${system.activeSegments}/${system.segments.length} active`}
-                            size="small"
+                        {/* System Color Indicator */}
+                        <Box
                             sx={{
-                                fontSize: '10px',
-                                height: '18px',
-                                backgroundColor: system.activeSegments > 0 ? '#e8f5e8' : '#ffebee',
-                                color: system.activeSegments > 0 ? '#388e3c' : '#d32f2f'
-                            }}
-                            icon={<SignalCellularAltIcon style={{ fontSize: '12px' }} />}
-                        />
-                    </Box>
-
-                    {/* System Totals */}
-                    <Box sx={{ mb: 2 }}>
-                        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
-                            <Typography variant="body2" sx={{ color: '#666', fontSize: '11px' }}>
-                                Total Capacity:
-                            </Typography>
-                            <Typography variant="body2" sx={{ fontWeight: 600, color: system.color }}>
-                                {system.totalCapacity.toLocaleString()} Gbps
-                            </Typography>
-                        </Box>
-
-                        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                            <Typography variant="body2" sx={{ color: '#666', fontSize: '11px' }}>
-                                Average Utilization:
-                            </Typography>
-                            <Typography variant="body2" sx={{ fontWeight: 600, color: system.color }}>
-                                {system.avgUtilization}%
-                            </Typography>
-                        </Box>
-                    </Box>
-
-                    {/* Segments List */}
-                    <Box sx={{ mt: 1 }}>
-                        <Typography variant="caption" sx={{ color: '#888', fontSize: '10px', textTransform: 'uppercase' }}>
-                            Segments:
-                        </Typography>
-                        {system.segments.map((segment, segIndex) => (
-                            <Box key={segIndex} sx={{
+                                position: 'absolute',
+                                top: -8,
+                                right: -8,
+                                background: system.color,
+                                color: 'white',
+                                borderRadius: '50%',
+                                width: 24,
+                                height: 24,
                                 display: 'flex',
-                                justifyContent: 'space-between',
                                 alignItems: 'center',
-                                mt: 0.5,
-                                p: 0.5,
-                                borderRadius: 1,
-                                backgroundColor: segment.utilization > 0 ? `${system.color}10` : 'rgba(0,0,0,0.05)'
-                            }}>
-                                <Typography variant="caption" sx={{ fontSize: '10px', color: '#555' }}>
-                                    {segment.name}
-                                </Typography>
-                                <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
-                                    <Typography variant="caption" sx={{ fontSize: '9px', color: '#777' }}>
-                                        {segment.capacity.toLocaleString()}G
-                                    </Typography>
+                                justifyContent: 'center',
+                                fontSize: '12px',
+                                fontWeight: 700,
+                                boxShadow: 2
+                            }}
+                        >
+                            {index + 1}
+                        </Box>
+
+                        {/* System Header */}
+                        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+                            <Typography variant="h6" sx={{ fontWeight: 700, color: system.color }}>
+                                {system.name}
+                            </Typography>
+                            <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
+                                <Chip
+                                    label={`${system.activeSegments}/${system.segments.length} active`}
+                                    size="small"
+                                    sx={{
+                                        fontSize: '10px',
+                                        height: '18px',
+                                        backgroundColor: system.activeSegments > 0 ? '#e8f5e8' : '#ffebee',
+                                        color: system.activeSegments > 0 ? '#388e3c' : '#d32f2f'
+                                    }}
+                                    icon={<SignalCellularAltIcon style={{ fontSize: '12px' }} />}
+                                />
+                                {/* Links Not Working Badge - matching map tooltip style */}
+                                {system.zeroUtilizationCount > 0 && (
                                     <Chip
-                                        label={`${segment.utilization}%`}
+                                        label={system.zeroUtilizationCount}
                                         size="small"
                                         sx={{
-                                            fontSize: '8px',
-                                            height: '14px',
-                                            minWidth: '30px',
-                                            backgroundColor: segment.utilization > 0 ? system.color : '#eee',
-                                            color: segment.utilization > 0 ? 'white' : '#999'
+                                            fontSize: '10px',
+                                            height: '18px',
+                                            minWidth: '22px',
+                                            backgroundColor: '#f44336',
+                                            color: 'white',
+                                            fontWeight: 'bold',
+                                            '& .MuiChip-label': {
+                                                padding: '0 6px'
+                                            }
                                         }}
                                     />
-                                </Box>
+                                )}
                             </Box>
-                        ))}
-                    </Box>
+                        </Box>
 
-                    {/* Last Update */}
-                    <Typography variant="caption" sx={{ color: '#999', fontSize: '9px', mt: 1, display: 'block' }}>
-                        Last updated: {system.lastUpdate.toLocaleTimeString()}
-                    </Typography>
-                </Paper>
+                        {/* System Totals */}
+                        <Box sx={{ mb: 2 }}>
+                            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
+                                <Typography variant="body2" sx={{ color: '#666', fontSize: '11px' }}>
+                                    Total Capacity:
+                                </Typography>
+                                <Typography variant="body2" sx={{ fontWeight: 600, color: system.color }}>
+                                    {system.totalCapacity.toLocaleString()} Gbps
+                                </Typography>
+                            </Box>
+
+                            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
+                                <Typography variant="body2" sx={{ color: '#666', fontSize: '11px' }}>
+                                    Average Utilization:
+                                </Typography>
+                                <Typography variant="body2" sx={{ fontWeight: 600, color: system.color }}>
+                                    {system.avgUtilization}%
+                                </Typography>
+                            </Box>
+
+                            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                <Typography variant="body2" sx={{ color: '#666', fontSize: '11px' }}>
+                                    Links Not Working:
+                                </Typography>
+                                <Typography variant="body2" sx={{
+                                    fontWeight: 600,
+                                    color: system.zeroUtilizationCount > 0 ? '#f44336' : '#4caf50'
+                                }}>
+                                    {system.zeroUtilizationCount}
+                                </Typography>
+                            </Box>
+                        </Box>
+
+                        {/* Segments List */}
+                        <Box sx={{ mt: 1 }}>
+                            <Typography variant="caption" sx={{ color: '#888', fontSize: '10px', textTransform: 'uppercase' }}>
+                                Segments:
+                            </Typography>
+                            {system.segments.map((segment, segIndex) => (
+                                <Box key={segIndex} sx={{
+                                    display: 'flex',
+                                    justifyContent: 'space-between',
+                                    alignItems: 'center',
+                                    mt: 0.5,
+                                    p: 0.5,
+                                    borderRadius: 1,
+                                    backgroundColor: segment.utilization > 0 ? `${system.color}10` : 'rgba(0,0,0,0.05)'
+                                }}>
+                                    <Typography variant="caption" sx={{ fontSize: '10px', color: '#555' }}>
+                                        {segment.name}
+                                    </Typography>
+                                    <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
+                                        <Typography variant="caption" sx={{ fontSize: '9px', color: '#777' }}>
+                                            {segment.capacity.toLocaleString()}G
+                                        </Typography>
+                                        <Chip
+                                            label={`${segment.utilization}%`}
+                                            size="small"
+                                            sx={{
+                                                fontSize: '8px',
+                                                height: '14px',
+                                                minWidth: '30px',
+                                                backgroundColor: segment.utilization > 0 ? system.color : '#eee',
+                                                color: segment.utilization > 0 ? 'white' : '#999'
+                                            }}
+                                        />
+                                    </Box>
+                                </Box>
+                            ))}
+                        </Box>
+
+                        {/* Last Update */}
+                        <Typography variant="caption" sx={{ color: '#999', fontSize: '9px', mt: 1, display: 'block' }}>
+                            Last updated: {system.lastUpdate.toLocaleTimeString()}
+                        </Typography>
+                    </Paper>
+                </Tooltip>
             ))}
 
+            {/* Modal Dialog */}
+            {selectedSystem && (
+                <Dialog open={open} onClose={handleClose} maxWidth="sm" fullWidth>
+                    <DialogTitle>
+                        <Typography variant="h4">{selectedSystem.name} Submarine Cable</Typography>
+                    </DialogTitle>
+                    <Divider />
+                    <DialogContent sx={{ pb: 2 }}>
+                        <CardContent>
+                            <Box sx={{ width: '100%' }}>
+                                <Tabs
+                                    variant="scrollable"
+                                    scrollButtons="auto"
+                                    textColor="primary"
+                                    indicatorColor="primary"
+                                    value={tabValue}
+                                    onChange={handleTabChange}
+                                    aria-label="cable system tabs"
+                                >
+                                    {selectedSystem.segments.map((segment, index) => (
+                                        <Tab key={index} label={segment.name} {...a11yProps(index)} />
+                                    ))}
+                                </Tabs>
+                                {selectedSystem.segments.map((segment, index) => (
+                                    <TabPanel key={index} value={tabValue} index={index}>
+                                        {renderChartComponent(selectedSystem.name, index)}
+                                    </TabPanel>
+                                ))}
+                            </Box>
+                        </CardContent>
+                    </DialogContent>
+                    <DialogActions>
+                        <Button onClick={handleClose} color="primary">
+                            Close
+                        </Button>
+                    </DialogActions>
+                </Dialog>
+            )}
         </Box>
     );
 };

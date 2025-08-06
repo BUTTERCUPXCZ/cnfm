@@ -50,9 +50,8 @@ function DynamicMarker({ position, label, count, onClick }) {
     cursor: pointer;
   ">
     ${label}
-    ${
-      count > 0
-        ? `<div style="
+    ${count > 0
+          ? `<div style="
         position: absolute;
         top: -18px;
         right: -17px;
@@ -68,8 +67,8 @@ function DynamicMarker({ position, label, count, onClick }) {
         font-weight: bold;
         box-shadow: 0 1px 2px rgba(0,0,0,0.2);
       ">${count}</div>`
-        : ''
-    }
+          : ''
+        }
   </div>`,
         {
           direction: 'top',
@@ -264,12 +263,6 @@ function C2C() {
         eventHandlers={{
           click: handleOpenDefine // Open modal on click
         }}
-      />
-      <DynamicMarker
-        position={[23.05, 122.25]}
-        label={`Total Capacity: <strong>${stats.totalGbps} Gbps</strong><br>Average Utilization: <strong>${stats.avgUtilization}%</strong>`}
-        count={zeroCount}
-        onClick={handleOpen}
       />
 
       {/* Modal Dialog */}
