@@ -119,9 +119,10 @@ const RemoveAttribution = () => {
 interface CableMapProps {
   selectedCable?: any;
   selectedCutType?: string | null;
+  mapRef?: React.RefObject<L.Map>;
 }
 
-const CableMap: React.FC<CableMapProps> = ({ selectedCable, selectedCutType }) => {
+const CableMap: React.FC<CableMapProps> = ({ selectedCable, selectedCutType, mapRef: externalMapRef }) => {
   const [mapHeight, setMapHeight] = useState('600px');
   const [ipopUtilization, setIpopUtilization] = useState('0%');
   const [ipopDifference, setIpopDifference] = useState('0%');
@@ -222,10 +223,15 @@ const CableMap: React.FC<CableMapProps> = ({ selectedCable, selectedCutType }) =
   }, [apiBaseUrl, port]);
 
   useEffect(() => {
-    if (selectedCable && selectedCable.latitude && selectedCable.longitude && mapRef.current) {
-      mapRef.current.setView([selectedCable.latitude, selectedCable.longitude], 10, { animate: true });
-    }
-  }, [selectedCable]);
+    // Remove this conflicting map panning logic - DeletedCablesSidebar handles its own positioning
+    // This useEffect was causing the map to get stuck because it conflicts with internal sidebar panning
+    // if (selectedCable && selectedCable.latitude && selectedCable.longitude) {
+    //   const map = externalMapRef?.current || mapRef.current;
+    //   if (map) {
+    //     map.setView([selectedCable.latitude, selectedCable.longitude], 10, { animate: true });
+    //   }
+    // }
+  }, [selectedCable, externalMapRef]);
 
   return (
     <Box sx={{ position: 'relative', width: '100%', height: mapHeight }}>
@@ -268,13 +274,15 @@ const CableMap: React.FC<CableMapProps> = ({ selectedCable, selectedCutType }) =
         >
           <DeletedCablesSidebar
             onSelectCable={(cable) => {
-              if (cable && cable.latitude && cable.longitude && mapRef.current) {
-                mapRef.current.setView([cable.latitude, cable.longitude], 8, { animate: true });
-              }
+              // Let DeletedCablesSidebar handle all map positioning internally
+              // Don't interfere with map panning to avoid conflicts
+              // console.log('Cable selected and positioned:', cable);
             }}
             lastUpdate={lastUpdate}
             setLastUpdate={setLastUpdate}
-            mapRef={mapRef}
+            isAdmin={true}  // Enable admin functionality
+            isUser={true}   // Enable user functionality 
+            mapRef={externalMapRef || mapRef}
           />
         </Paper>
       )}
@@ -302,7 +310,7 @@ const CableMap: React.FC<CableMapProps> = ({ selectedCable, selectedCutType }) =
         </Paper>
       )}
 
-      <MapContainer style={{ height: '100%', width: '100%' }} ref={mapRef}>
+      <MapContainer style={{ height: '100%', width: '100%' }} ref={externalMapRef || mapRef}>
         <RemoveAttribution />
         <ChangeView center={[18, 134]} zoom={3.5} />
         <TileLayer

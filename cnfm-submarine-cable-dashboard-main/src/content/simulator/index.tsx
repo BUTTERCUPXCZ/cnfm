@@ -11,9 +11,10 @@ import {
 } from '@mui/material';
 import Swal from 'sweetalert2';
 import Header from 'src/components/Header';
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState, useRef } from 'react';
 import CableMap from '../admin/components/CableMap';
 import DeletedCablesSidebar from '../admin/components/DeletedCablesSidebar';
+import L from 'leaflet';
 
 const legendItems = [
   { name: 'TGN-IA', color: 'yellow' },
@@ -31,6 +32,7 @@ function SimulatorDashboard() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [selectedCable, setSelectedCable] = useState(null);
   const [selectedCutType, setSelectedCutType] = useState<string | null>(null);
+  const mapRef = useRef<L.Map | null>(null);
 
   // ✅ Create a reusable fetch function
   const fetchLastUpdate = useCallback(async () => {
@@ -141,37 +143,12 @@ function SimulatorDashboard() {
                       ))}
                     </Box>
 
-                    {/* Sidebar Overlay inside the map */}
-                    {sidebarOpen && (
-                      <Box
-                        sx={{
-                          position: 'absolute',
-                          top: 0,
-                          left: 0,
-                          height: '100%',
-                          width: 360,
-                          zIndex: 1100,
-                          display: 'flex',
-                          flexDirection: 'column',
-                          boxShadow: 4,
-                          borderRadius: '8px',
-                          overflow: 'hidden',
-                          background: 'rgba(255, 255, 255, 0.7)',
-                        }}
-                      >
-                        <DeletedCablesSidebar
-                          onSelectCable={(cable) => {
-                            setSelectedCable(cable);
-                            // Pan the map to the cable's location if available
-                            // You may need to pass mapRef if you want to pan the map
-                          }}
-                          lastUpdate={lastUpdate}
-                          setLastUpdate={setLastUpdate}
-                        />
-                      </Box>
-                    )}
                     {/* Map Container */}
-                    <CableMap selectedCable={selectedCable} selectedCutType={selectedCutType} />
+                    <CableMap 
+                      selectedCable={selectedCable} 
+                      selectedCutType={selectedCutType} 
+                      mapRef={mapRef}
+                    />
                   </Box>
                 </Grid>
               </Grid>

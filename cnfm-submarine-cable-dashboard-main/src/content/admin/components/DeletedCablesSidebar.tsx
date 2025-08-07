@@ -47,6 +47,7 @@ const DeletedCablesSidebar: React.FC<DeletedCablesSidebarProps> = ({
     const [error, setError] = useState<string | null>(null);
     const [selectedCable, setSelectedCable] = useState<CableCut | null>(null);
     const [showMapMarker, setShowMapMarker] = useState(false);
+    const [markerClickCount, setMarkerClickCount] = useState(0); // Force re-render for same cable clicks
     const currentMarkerRef = useRef<L.Marker | null>(null);
 
     const fetchDeletedCables = async () => {
@@ -71,16 +72,51 @@ const DeletedCablesSidebar: React.FC<DeletedCablesSidebarProps> = ({
 
     const handleCableClick = (cable: CableCut, event: React.MouseEvent) => {
         event.stopPropagation();
+        
+        // Stop any ongoing map animations to prevent conflicts
+        if (mapRef?.current) {
+            mapRef.current.stop();
+        }
+        
+        // Always remove existing marker first to ensure consistent behavior
+        if (currentMarkerRef.current && mapRef?.current) {
+            mapRef.current.removeLayer(currentMarkerRef.current);
+            currentMarkerRef.current = null;
+        }
+        
+        // Immediate execution - no delay to prevent stuttering
         setSelectedCable(cable);
         setShowMapMarker(true);
-        onSelectCable(cable);
+        setMarkerClickCount(prev => prev + 1); // Force effect to trigger even for same cable
+        // onSelectCable will be called after marker is created and positioned
     };
 
     // Function to create map marker
     const createMapMarker = (cable: CableCut) => {
-        if (!mapRef?.current || !cable.latitude || !cable.longitude) return;
+        if (!mapRef?.current || !cable.latitude || !cable.longitude) {
+            console.error('Cannot create marker: missing map reference or coordinates');
+            return;
+        }
+
+        // Validate coordinates are within valid ranges and ensure high precision
+        const lat = parseFloat(parseFloat(cable.latitude.toString()).toFixed(6));
+        const lng = parseFloat(parseFloat(cable.longitude.toString()).toFixed(6));
+        
+        console.log('Creating marker for cable:', {
+            cutId: cable.cut_id,
+            originalLat: cable.latitude,
+            originalLng: cable.longitude,
+            parsedLat: lat,
+            parsedLng: lng
+        });
+        
+        if (lat < -90 || lat > 90 || lng < -180 || lng > 180) {
+            console.error('Invalid coordinates for cable:', { lat, lng, cable: cable.cut_id });
+            return;
+        }
 
         const map = mapRef.current;
+        const position: [number, number] = [lat, lng];
 
         // Remove existing marker
         if (currentMarkerRef.current) {
@@ -100,7 +136,8 @@ const DeletedCablesSidebar: React.FC<DeletedCablesSidebarProps> = ({
         };
 
         const markerStyle = getMarkerStyle(cable.cut_type);
-        const position: [number, number] = [cable.latitude, cable.longitude];
+        // Use validated coordinates instead of original cable coordinates
+        // const position: [number, number] = [cable.latitude, cable.longitude];
 
         // Create marker with custom icon
         const marker = L.marker(position, {
@@ -151,11 +188,11 @@ const DeletedCablesSidebar: React.FC<DeletedCablesSidebarProps> = ({
                         </tr>
                         <tr>
                             <td style="font-weight: bold; padding-bottom: 8px;">Latitude:</td>
-                            <td style="text-align: right; padding-bottom: 8px;">${Number(cable.latitude).toFixed(6)}</td>
+                            <td style="text-align: right; padding-bottom: 8px;">${lat}</td>
                         </tr>
                         <tr>
                             <td style="font-weight: bold; padding-bottom: 8px;">Longitude:</td>
-                            <td style="text-align: right; padding-bottom: 8px;">${Number(cable.longitude).toFixed(6)}</td>
+                            <td style="text-align: right; padding-bottom: 8px;">${lng}</td>
                         </tr>
                         <tr>
                             <td style="font-weight: bold; padding-bottom: 8px;">Fault Date:</td>
@@ -207,7 +244,29 @@ const DeletedCablesSidebar: React.FC<DeletedCablesSidebarProps> = ({
                     }
                     .deleted-cable-custom-popup .leaflet-popup-tip-container,
                     .deleted-cable-custom-popup .leaflet-popup-tip { display: none; }
-                    .deleted-cable-custom-popup .leaflet-popup-close-button { display: none; }
+                    .deleted-cable-custom-popup .leaflet-popup-close-button { 
+                        display: block !important;
+                        position: absolute;
+                        top: 6px;
+                        right: 6px;
+                        width: 24px;
+                        height: 24px;
+                        background: rgba(255, 255, 255, 0.9);
+                        border: 1px solid #ddd;
+                        border-radius: 3px;
+                        color: #666;
+                        font-size: 16px;
+                        font-weight: bold;
+                        text-align: center;
+                        line-height: 20px;
+                        cursor: pointer;
+                        z-index: 1001;
+                    }
+                    .deleted-cable-custom-popup .leaflet-popup-close-button:hover {
+                        background: #fff;
+                        color: #333;
+                        border-color: #999;
+                    }
                     .deleted-cable-custom-popup.leaflet-popup { 
                         margin-bottom: 0; 
                         z-index: 1000;
@@ -235,7 +294,7 @@ const DeletedCablesSidebar: React.FC<DeletedCablesSidebarProps> = ({
             className: 'deleted-cable-custom-popup',
             maxWidth: 250,
             minWidth: 250,
-            closeButton: false,
+            closeButton: true, // Enable the close button
             autoClose: false,
             closeOnClick: false,
             offset: [0, -30] // Position popup above the marker so X is visible below
@@ -243,33 +302,30 @@ const DeletedCablesSidebar: React.FC<DeletedCablesSidebarProps> = ({
 
         marker.bindPopup(popup);
 
-        // Add hover event listeners similar to CableCutFetching
-        marker.on('mouseover', function (e) {
+        // Make popup persistent - show immediately and keep open
+        marker.on('add', function (e) {
+            // Open popup immediately when marker is added - no delay
             this.openPopup();
         });
 
-        marker.on('mouseout', function (e) {
-            // Small delay to prevent flickering when moving mouse between marker and popup
-            setTimeout(() => {
-                const popupElement = this.getPopup().getElement();
-                if (!popupElement?.matches(':hover')) {
-                    this.closePopup();
+        // Handle popup close event - remove marker when popup is closed
+        marker.on('popupclose', function (e) {
+            // Remove the marker when popup is closed
+            if (mapRef?.current) {
+                mapRef.current.removeLayer(this);
+                if (currentMarkerRef.current === this) {
+                    currentMarkerRef.current = null;
                 }
-            }, 100);
+            }
+            // Reset the state
+            setShowMapMarker(false);
+            setSelectedCable(null);
         });
 
-        // Keep popup open when hovering over the popup itself and add delete functionality
+        // Prevent popup from closing on mouseout for consistent display
         marker.on('popupopen', function (e) {
             const popupElement = this.getPopup().getElement();
             if (popupElement) {
-                popupElement.addEventListener('mouseenter', () => {
-                    // Keep popup open
-                });
-
-                popupElement.addEventListener('mouseleave', () => {
-                    this.closePopup();
-                });
-
                 // Add click event listener for delete button (only if user can delete)
                 if (isAdmin && isUser) {
                     const deleteButton = popupElement.querySelector('.delete-marker-btn');
@@ -287,11 +343,37 @@ const DeletedCablesSidebar: React.FC<DeletedCablesSidebarProps> = ({
         marker.addTo(map);
         currentMarkerRef.current = marker;
 
-        // Pan to marker and automatically open popup
-        map.setView(position, 8, { animate: true });
+        // Stop any ongoing animations before starting new one to prevent conflicts
+        map.stop();
+        
+        // Force map to focus exactly on the marker coordinates with appropriate zoom
+        const targetZoom = 10; // Fixed zoom level for consistent viewing
+        console.log('Panning map to:', { position, targetZoom });
+        
+        // Set view with faster, smooth animation
+        map.setView(position, targetZoom, { 
+            animate: true,
+            duration: 0.5, // Much shorter animation for immediate response
+            easeLinearity: 0.1 // Smoother easing
+        });
+        
+        // Simplified positioning verification with minimal delay
         setTimeout(() => {
+            // Quick position check and correction if needed
+            const currentCenter = map.getCenter();
+            const distance = Math.abs(currentCenter.lat - lat) + Math.abs(currentCenter.lng - lng);
+            
+            if (distance > 0.001) { // If map is not close enough, force it
+                console.log('Map not at exact position, correcting...');
+                map.setView(position, targetZoom, { animate: false }); // No animation for correction
+            }
+            
+            console.log('Final marker position:', marker.getLatLng());
+            console.log('Final map center:', map.getCenter());
             marker.openPopup();
-        }, 500);
+            // Now that marker is created and positioned, notify the parent component
+            onSelectCable(cable);
+        }, 550); // Match animation duration plus minimal buffer
     };
 
     const handleCloseToast = (
@@ -345,7 +427,7 @@ const DeletedCablesSidebar: React.FC<DeletedCablesSidebarProps> = ({
                 currentMarkerRef.current = null;
             }
         };
-    }, [showMapMarker, selectedCable, isAdmin, isUser]);
+    }, [showMapMarker, selectedCable, markerClickCount, isAdmin, isUser]);
 
     // Format date helper
     const formatDate = (dateStr: string) => {
