@@ -214,7 +214,9 @@ function RPLSJC10() {
               (item: any) =>
                 item.event &&
                 typeof item.event === 'string' &&
-                (item.event.includes('BMH') || item.event.includes('BU'))
+                (item.event.includes('BMH') ||
+                 item.event.includes('BU') ||
+                 item.event.includes('S10O'))
             )
             .map((item: any) => ({
               latitude: item.full_latitude,

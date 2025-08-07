@@ -214,7 +214,9 @@ function RPLSJC13() {
               (item: any) =>
                 item.event &&
                 typeof item.event === 'string' &&
-                (item.event.includes('LP') || item.event.includes('BU'))
+                (item.event.includes('LP') ||
+                 item.event.includes('BU') ||
+                 item.event.includes('S13S'))
             )
             .map((item: any) => ({
               latitude: item.full_latitude,
