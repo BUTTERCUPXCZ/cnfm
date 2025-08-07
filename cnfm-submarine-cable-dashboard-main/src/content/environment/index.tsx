@@ -12,10 +12,11 @@ import {
 } from '@mui/material';
 import MenuIcon from '@mui/icons-material/Menu';
 import Swal from 'sweetalert2';
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import Header from 'src/components/Header';
 import SimulationMap from './components/SimulationMap';
 import DeletedCablesSidebar from '../admin/components/DeletedCablesSidebar';
+import L from 'leaflet';
 
 interface CableCut {
   cut_id: string;
@@ -36,6 +37,7 @@ function SimulationEnvironment() {
   const [lastUpdate, setLastUpdate] = useState<string | null>(null);
   const [selectedCable, setSelectedCable] = useState<CableCut | null>(null);
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const mapRef = useRef<L.Map | null>(null);
 
   return (
     <Box
@@ -92,7 +94,9 @@ function SimulationEnvironment() {
                 overflow: 'visible',
                 borderLeft: '4px solid #3854A5', // Primary blue border on cards
                 boxShadow: '0 4px 20px 0 rgba(56, 84, 165, 0.1)', // Subtle blue shadow
-                position: 'relative'
+                position: 'relative',
+                height: '70vh', // Set fixed height for the card
+                minHeight: '600px' // Minimum height
               }}
             >
               <Box sx={{ position: 'relative', width: '100%', height: '100%' }}>
@@ -136,16 +140,20 @@ function SimulationEnvironment() {
                     <DeletedCablesSidebar
                       onSelectCable={(cable: CableCut) => {
                         setSelectedCable(cable);
-                        // Optionally: pan the map to the cable's location if you have a mapRef
+                        // Pan the map to the cable's location using mapRef
+                        if (cable && cable.latitude && cable.longitude && mapRef.current) {
+                          mapRef.current.setView([cable.latitude, cable.longitude], 8, { animate: true });
+                        }
                       }}
                       lastUpdate={lastUpdate}
                       setLastUpdate={setLastUpdate}
+                      mapRef={mapRef}
                     />
                   </Paper>
                 )}
                 {/* Map Container */}
-                <Box sx={{ width: '100%' }}>
-                  <SimulationMap selectedCable={selectedCable} />
+                <Box sx={{ width: '100%', height: '100%' }}>
+                  <SimulationMap selectedCable={selectedCable} mapRef={mapRef} />
                 </Box>
               </Box>
             </Card>

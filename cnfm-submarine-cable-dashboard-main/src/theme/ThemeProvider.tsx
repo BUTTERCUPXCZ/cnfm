@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
 import { ThemeProvider } from '@mui/material';
 import { themeCreator } from './base';
-import { StylesProvider } from '@mui/styles';
 
 export const ThemeContext = React.createContext(
   (themeName: string): void => {}
@@ -17,11 +16,9 @@ const ThemeProviderWrapper: React.FC = (props) => {
   };
 
   return (
-    <StylesProvider injectFirst>
-      <ThemeContext.Provider value={setThemeName}>
-        <ThemeProvider theme={theme}>{props.children}</ThemeProvider>
-      </ThemeContext.Provider>
-    </StylesProvider>
+    <ThemeContext.Provider value={setThemeName}>
+      <ThemeProvider theme={theme}>{props.children}</ThemeProvider>
+    </ThemeContext.Provider>
   );
 };
 

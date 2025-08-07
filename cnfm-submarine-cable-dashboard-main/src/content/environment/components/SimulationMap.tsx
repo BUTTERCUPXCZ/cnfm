@@ -1,10 +1,12 @@
-import { Box, Typography } from '@mui/material';
+import { Box, Typography, IconButton, Paper } from '@mui/material';
+import InfoIcon from '@mui/icons-material/Info';
 import { MapContainer, TileLayer, useMap } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
 import { useEffect, useRef, useState } from 'react';
 import L from 'leaflet';
 import USAMarker from 'src/content/admin/components/USAMarker';
 import JapanMarker from 'src/content/admin/components/JapanMarker';
+import HideToolTip from 'src/content/admin/components/HideToolTip';
 import TGNIA from 'src/content/admin/dashboard/TGNIA';
 import SJC from 'src/content/admin/dashboard/SJC';
 import HongkongMarker from 'src/content/admin/components/HongkongMarker';
@@ -118,24 +120,47 @@ interface CableCut {
 
 interface SimulationMapProps {
   selectedCable?: CableCut | null;
+  mapRef?: React.RefObject<L.Map>;
 }
 
-const SimulationMap: React.FC<SimulationMapProps> = ({ selectedCable }) => {
+const SimulationMap: React.FC<SimulationMapProps> = ({ selectedCable, mapRef: externalMapRef }) => {
+  const [mapHeight, setMapHeight] = useState('60vh');
+  
   // Pan/zoom to selected cable location
   useEffect(() => {
     if (selectedCable && selectedCable.latitude && selectedCable.longitude) {
-      // Use a ref to get the map instance
-      const map = mapRef.current;
+      // Use external mapRef if provided, otherwise use internal mapRef
+      const map = externalMapRef?.current || mapRef.current;
       if (map) {
         map.setView([selectedCable.latitude, selectedCable.longitude], 10, {
           animate: true
         });
       }
     }
-  }, [selectedCable]);
-  const [mapHeight, setMapHeight] = useState('600px');
+  }, [selectedCable, externalMapRef]);
+  useEffect(() => {
+    const updateMapHeight = () => {
+      const screenWidth = window.innerWidth;
+      const screenHeight = window.innerHeight;
+      
+      // Calculate height based on available space
+      if (screenHeight > 900) {
+        setMapHeight('70vh');
+      } else if (screenHeight > 700) {
+        setMapHeight('65vh');
+      } else {
+        setMapHeight('60vh');
+      }
+    };
+
+    updateMapHeight();
+    window.addEventListener('resize', updateMapHeight);
+
+    return () => window.removeEventListener('resize', updateMapHeight);
+  }, []);
   const [ipopUtilization, setIpopUtilization] = useState('0%');
   const [ipopDifference, setIpopDifference] = useState('0%');
+  const [rightSidebarOpen, setRightSidebarOpen] = useState(false);
   const [stats, setStats] = useState({
     data: [],
     totalGbps: 0,
@@ -274,11 +299,52 @@ const SimulationMap: React.FC<SimulationMapProps> = ({ selectedCable }) => {
   // Ref for map instance
   const mapRef = useRef<L.Map | null>(null);
   return (
-    <>
-      {/* Map Container */}
+    <Box sx={{ position: 'relative', width: '100%', height: '100%' }}>
+      {/* Right sidebar toggle button */}
+      <IconButton
+        sx={{
+          position: 'absolute',
+          top: 16,
+          right: 16,
+          zIndex: 1200,
+          background: '#fff',
+          boxShadow: 2,
+          borderRadius: 1,
+          p: 1,
+          '&:hover': { background: '#e3e8f5' }
+        }}
+        onClick={() => setRightSidebarOpen((open) => !open)}
+        aria-label="Show Info Sidebar"
+      >
+        <InfoIcon sx={{ fontSize: 28, color: '#3854A5' }} />
+      </IconButton>
+
+      {/* Right Sidebar - HideToolTip */}
+      {rightSidebarOpen && (
+        <Paper
+          elevation={4}
+          sx={{
+            position: 'absolute',
+            top: 0,
+            right: 0,
+            height: '100%',
+            width: 360,
+            zIndex: 1100,
+            display: 'flex',
+            flexDirection: 'column',
+            boxShadow: 4,
+            borderRadius: '8px',
+            overflow: 'hidden',
+            background: 'rgba(255, 255, 255, 0.9)',
+          }}
+        >
+          <HideToolTip />
+        </Paper>
+      )}
+
       <MapContainer
-        style={{ height: mapHeight, width: '100%' }}
-        ref={mapRef}
+        style={{ height: '100%', width: '100%' }}
+        ref={externalMapRef || mapRef}
       >
 
         <RemoveAttribution />
@@ -287,59 +353,7 @@ const SimulationMap: React.FC<SimulationMapProps> = ({ selectedCable }) => {
         <TileLayer
           url={`https://maps.geoapify.com/v1/tile/klokantech-basic/{z}/{x}/{y}.png?apiKey=${mapApiKey}`}
         />
-        <Box
-          sx={{
-            position: 'absolute',
-            top: 10,
-            right: 10,
-            backgroundColor: 'rgba(255, 255, 255, 0.7)',
-            color: 'white',
-            padding: '8px 12px',
-            borderRadius: '8px',
-            zIndex: 1000,
-            fontSize: '14px',
-            flexDirection: 'row'
-          }}
-        >
-          <Typography variant="caption" color="gray">
-            Capacity:
-          </Typography>
-          <Typography variant="h4" color="black">
-            {stats.totalGbps} Gbps
-          </Typography>
-
-          <Typography variant="caption" color="gray">
-            Average Utilization:
-          </Typography>
-          <Typography variant="h4" color="black">
-            {ipopUtilization}
-            {/* {parseFloat(ipopDifference) !== 0 && (
-              <Box
-                sx={(theme) => {
-                  const diff = parseFloat(ipopDifference);
-
-                  return {
-                    display: 'inline-block',
-                    padding: '2px 10px',
-                    borderRadius: '999px',
-                    fontWeight: 'bold',
-                    fontSize: '14px',
-                    backgroundColor:
-                      diff < 0
-                        ? theme.colors.error.lighter
-                        : theme.colors.success.lighter,
-                    color:
-                      diff < 0
-                        ? theme.colors.error.main
-                        : theme.colors.success.main
-                  };
-                }}
-              >
-                {ipopDifference}
-              </Box>
-            )} */}
-          </Typography>
-        </Box>
+    
         {/* Dynamic Hoverable Dot Markers*/}
         <DynamicMarker
           position={[1.3678, 125.0788]}
@@ -396,17 +410,17 @@ const SimulationMap: React.FC<SimulationMapProps> = ({ selectedCable }) => {
         <RPLTGNIA10 />
         <RPLTGNIA11 />
         <RPLTGNIA12 />
-        <SeaUS />
-        <SJC />
+   
+ 
         <C2C />
-        <TGNIA />
+       
         <ReturnButton />
         <CutSeaUS />
         <CutSJC />
         <CutTGNIA />
         <ResetButton />
       </MapContainer>
-    </>
+    </Box>
   );
 };
 

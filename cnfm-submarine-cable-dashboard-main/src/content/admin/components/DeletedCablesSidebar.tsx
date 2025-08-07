@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import {
     Box,
     Typography,
@@ -6,12 +6,10 @@ import {
     List,
     ListItem,
     Button,
-    Snackbar,
-    Alert,
     IconButton
 } from '@mui/material';
 import RefreshIcon from '@mui/icons-material/Refresh';
-import CloseIcon from '@mui/icons-material/Close';
+import L from 'leaflet';
 
 interface CableCut {
     cut_id: string;
@@ -32,17 +30,8 @@ interface DeletedCablesSidebarProps {
     phTime?: string;
     isAdmin?: boolean; // <-- Add this prop
     isUser?: boolean; // <-- Add this prop
+    mapRef?: React.RefObject<L.Map>; // Add map reference
 }
-
-const TOAST_AUTO_HIDE = 7000; // ms
-
-// Add this mapping above your component
-const CUT_TYPE_COLORS: Record<string, string> = {
-    'FULL CUT': '#B71C1C',              // Deep Red
-    'FIBER BREAK': '#F44336',           // Red
-    'PARTIAL FIBER BREAK': '#FF9800',   // Orange
-    'SHUNT FAULT': '#FFD54F',           // Yellow
-};
 
 const DeletedCablesSidebar: React.FC<DeletedCablesSidebarProps> = ({
     onSelectCable,
@@ -50,13 +39,15 @@ const DeletedCablesSidebar: React.FC<DeletedCablesSidebarProps> = ({
     setLastUpdate,
     phTime,
     isAdmin = true, // <-- Default to true for admin pages
-    isUser = true // <-- Default to true for user pages
+    isUser = true, // <-- Default to true for user pages
+    mapRef
 }) => {
     const [deletedCables, setDeletedCables] = useState<CableCut[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
-    const [toastCable, setToastCable] = useState<CableCut | null>(null);
-    const [toastOpen, setToastOpen] = useState(false);
+    const [selectedCable, setSelectedCable] = useState<CableCut | null>(null);
+    const [showMapMarker, setShowMapMarker] = useState(false);
+    const currentMarkerRef = useRef<L.Marker | null>(null);
 
     const fetchDeletedCables = async () => {
         setLoading(true);
@@ -80,9 +71,227 @@ const DeletedCablesSidebar: React.FC<DeletedCablesSidebarProps> = ({
 
     const handleCableClick = (cable: CableCut, event: React.MouseEvent) => {
         event.stopPropagation();
-        setToastCable(cable);
-        setToastOpen(true);
+        setSelectedCable(cable);
+        setShowMapMarker(true);
         onSelectCable(cable);
+    };
+
+    // Function to create map marker
+    const createMapMarker = (cable: CableCut) => {
+        if (!mapRef?.current || !cable.latitude || !cable.longitude) return;
+
+        const map = mapRef.current;
+
+        // Remove existing marker
+        if (currentMarkerRef.current) {
+            map.removeLayer(currentMarkerRef.current);
+            currentMarkerRef.current = null;
+        }
+
+        // Create marker style based on cut type
+        const getMarkerStyle = (cutType: string) => {
+            const styles: Record<string, any> = {
+                'Shunt Fault': { color: '#FBC02D', size: 20 },
+                'Partial Fiber Break': { color: '#FF6600', size: 20 },
+                'Fiber Break': { color: '#F44336', size: 20 },
+                'Full Cut': { color: '#B71C1C', size: 20 }
+            };
+            return styles[cutType] || { color: '#9E9E9E', size: 20 };
+        };
+
+        const markerStyle = getMarkerStyle(cable.cut_type);
+        const position: [number, number] = [cable.latitude, cable.longitude];
+
+        // Create marker with custom icon
+        const marker = L.marker(position, {
+            icon: L.divIcon({
+                className: `deleted-cable-marker-${cable.cut_type}`,
+                html: `
+                    <div style="
+                        position: relative;
+                        width: ${markerStyle.size}px; 
+                        height: ${markerStyle.size}px;
+                        display: flex;
+                        align-items: center;
+                        justify-content: center;
+                        z-index: 1001;
+                    ">
+                        <div style="
+                            color: ${markerStyle.color};
+                            font-size: ${markerStyle.size - 4}px;
+                            font-weight: bold;
+                            text-shadow: 2px 2px 4px rgba(0,0,0,0.9), -1px -1px 2px rgba(255,255,255,0.8);
+                            line-height: 1;
+                            z-index: 1002;
+                            position: relative;
+                        ">✕</div>
+                    </div>
+                `,
+                iconSize: [markerStyle.size, markerStyle.size],
+                iconAnchor: [markerStyle.size / 2, markerStyle.size / 2]
+            }),
+            zIndexOffset: 1000 // Ensure marker stays visible
+        });
+
+        // Create popup content with exact same styling as CableCutFetching
+        const popupContent = `
+            <div class="cable-cut-popup" style="font-family: Arial, sans-serif; width: 250px; box-shadow: 0 2px 5px rgba(0,0,0,0.2); border-radius: 4px; overflow: hidden;">
+                <div style="background-color: ${markerStyle.color}; color: white; padding: 8px; text-align: center; font-weight: bold; font-size: 14px; letter-spacing: 0.5px;">
+                    ${cable.cut_type.toUpperCase()}
+                </div>
+                <div style="background-color: white; padding: 12px;">
+                    <table style="width: 100%; border-collapse: collapse; font-size: 13px;">
+                        <tr>
+                            <td style="font-weight: bold; padding-bottom: 8px;">Distance:</td>
+                            <td style="text-align: right; padding-bottom: 8px;">${Number(cable.distance).toFixed(3)} km</td>
+                        </tr>
+                        <tr>
+                            <td style="font-weight: bold; padding-bottom: 8px;">Depth:</td>
+                            <td style="text-align: right; padding-bottom: 8px;">${cable.depth || 'Unknown'} m</td>
+                        </tr>
+                        <tr>
+                            <td style="font-weight: bold; padding-bottom: 8px;">Latitude:</td>
+                            <td style="text-align: right; padding-bottom: 8px;">${Number(cable.latitude).toFixed(6)}</td>
+                        </tr>
+                        <tr>
+                            <td style="font-weight: bold; padding-bottom: 8px;">Longitude:</td>
+                            <td style="text-align: right; padding-bottom: 8px;">${Number(cable.longitude).toFixed(6)}</td>
+                        </tr>
+                        <tr>
+                            <td style="font-weight: bold; padding-bottom: 8px;">Fault Date:</td>
+                            <td style="text-align: right; padding-bottom: 8px;">${
+                                cable.fault_date
+                                    ? new Date(cable.fault_date).toLocaleDateString('en-US', {
+                                        year: 'numeric',
+                                        month: 'long',
+                                        day: 'numeric'
+                                    })
+                                    : 'Not specified'
+                            }</td>
+                        </tr>
+                    </table>
+                </div>
+                ${(isAdmin && isUser) ? `
+                    <div style="background-color: #f8f9fa; padding: 12px; border-top: 1px solid #dee2e6;">
+                        <button class="delete-marker-btn" data-cut-id="${cable.cut_id}" style="
+                            background-color: #dc3545;
+                            color: white;
+                            border: none;
+                            padding: 8px 12px;
+                            border-radius: 4px;
+                            cursor: pointer;
+                            font-size: 12px;
+                            font-weight: bold;
+                            width: 100%;
+                            transition: background-color 0.2s;
+                        ">
+                            Delete
+                        </button>
+                    </div>
+                ` : ''}
+            </div>
+        `;
+
+        // Add popup styles similar to CableCutFetching
+        const addPopupStyles = () => {
+            const styleId = `deleted-cable-popup-styles`;
+            if (!document.getElementById(styleId)) {
+                const style = document.createElement('style');
+                style.id = styleId;
+                style.innerHTML = `
+                    .deleted-cable-custom-popup .leaflet-popup-content-wrapper {
+                        padding: 0; margin: 0; background: none; box-shadow: none; border: none;
+                    }
+                    .deleted-cable-custom-popup .leaflet-popup-content {
+                        margin: 0; padding: 0; width: auto !important; background: none; box-shadow: none;
+                    }
+                    .deleted-cable-custom-popup .leaflet-popup-tip-container,
+                    .deleted-cable-custom-popup .leaflet-popup-tip { display: none; }
+                    .deleted-cable-custom-popup .leaflet-popup-close-button { display: none; }
+                    .deleted-cable-custom-popup.leaflet-popup { 
+                        margin-bottom: 0; 
+                        z-index: 1000;
+                    }
+                    .deleted-cable-custom-popup .leaflet-popup-content-wrapper {
+                        border-radius: 4px;
+                        box-shadow: 0 2px 10px rgba(0,0,0,0.3);
+                    }
+                    .delete-marker-btn:hover {
+                        background-color: #c82333 !important;
+                    }
+                    .delete-marker-btn:active {
+                        background-color: #bd2130 !important;
+                    }
+                `;
+                document.head.appendChild(style);
+            }
+        };
+
+        // Add styles
+        addPopupStyles();
+
+        // Create popup with positioning to show above the marker
+        const popup = L.popup({
+            className: 'deleted-cable-custom-popup',
+            maxWidth: 250,
+            minWidth: 250,
+            closeButton: false,
+            autoClose: false,
+            closeOnClick: false,
+            offset: [0, -30] // Position popup above the marker so X is visible below
+        }).setContent(popupContent);
+
+        marker.bindPopup(popup);
+
+        // Add hover event listeners similar to CableCutFetching
+        marker.on('mouseover', function (e) {
+            this.openPopup();
+        });
+
+        marker.on('mouseout', function (e) {
+            // Small delay to prevent flickering when moving mouse between marker and popup
+            setTimeout(() => {
+                const popupElement = this.getPopup().getElement();
+                if (!popupElement?.matches(':hover')) {
+                    this.closePopup();
+                }
+            }, 100);
+        });
+
+        // Keep popup open when hovering over the popup itself and add delete functionality
+        marker.on('popupopen', function (e) {
+            const popupElement = this.getPopup().getElement();
+            if (popupElement) {
+                popupElement.addEventListener('mouseenter', () => {
+                    // Keep popup open
+                });
+
+                popupElement.addEventListener('mouseleave', () => {
+                    this.closePopup();
+                });
+
+                // Add click event listener for delete button (only if user can delete)
+                if (isAdmin && isUser) {
+                    const deleteButton = popupElement.querySelector('.delete-marker-btn');
+                    if (deleteButton) {
+                        deleteButton.addEventListener('click', (e) => {
+                            e.stopPropagation();
+                            handleDeleteCable(cable);
+                        });
+                    }
+                }
+            }
+        });
+
+        // Add marker to map
+        marker.addTo(map);
+        currentMarkerRef.current = marker;
+
+        // Pan to marker and automatically open popup
+        map.setView(position, 8, { animate: true });
+        setTimeout(() => {
+            marker.openPopup();
+        }, 500);
     };
 
     const handleCloseToast = (
@@ -90,8 +299,8 @@ const DeletedCablesSidebar: React.FC<DeletedCablesSidebarProps> = ({
         reason?: string
     ) => {
         if (reason === 'clickaway') return;
-        setToastOpen(false);
-        setTimeout(() => setToastCable(null), 300); // allow fade out
+        setShowMapMarker(false);
+        setTimeout(() => setSelectedCable(null), 300); // allow fade out
     };
 
     const handleDeleteCable = async (cable: CableCut) => {
@@ -104,8 +313,8 @@ const DeletedCablesSidebar: React.FC<DeletedCablesSidebarProps> = ({
             if (result.success) {
                 fetchDeletedCables();
                 if (setLastUpdate) setLastUpdate(Date.now().toString());
-                setToastOpen(false);
-                setTimeout(() => setToastCable(null), 300);
+                setShowMapMarker(false);
+                setTimeout(() => setSelectedCable(null), 300);
             } else {
                 alert('Failed to delete cable.');
             }
@@ -118,6 +327,25 @@ const DeletedCablesSidebar: React.FC<DeletedCablesSidebarProps> = ({
     useEffect(() => {
         fetchDeletedCables();
     }, [lastUpdate]);
+
+    // Effect to create map marker when cable is selected
+    useEffect(() => {
+        if (showMapMarker && selectedCable) {
+            createMapMarker(selectedCable);
+        } else if (currentMarkerRef.current && mapRef?.current) {
+            // Remove marker when showMapMarker is false
+            mapRef.current.removeLayer(currentMarkerRef.current);
+            currentMarkerRef.current = null;
+        }
+
+        // Cleanup function
+        return () => {
+            if (currentMarkerRef.current && mapRef?.current) {
+                mapRef.current.removeLayer(currentMarkerRef.current);
+                currentMarkerRef.current = null;
+            }
+        };
+    }, [showMapMarker, selectedCable, isAdmin, isUser]);
 
     // Format date helper
     const formatDate = (dateStr: string) => {
@@ -250,138 +478,6 @@ const DeletedCablesSidebar: React.FC<DeletedCablesSidebarProps> = ({
                     )}
                 </List>
             </Box>
-
-            {/* Toast-style Cable Details */}
-            <Snackbar
-                anchorOrigin={{ vertical: 'top', horizontal: 'right' }}
-                open={toastOpen}
-                autoHideDuration={TOAST_AUTO_HIDE}
-                onClose={handleCloseToast}
-                sx={{
-                    zIndex: 1400,
-                    mt: { xs: 8, sm: 10 },
-                    '& .MuiSnackbarContent-root': {
-                        background: 'transparent',
-                        boxShadow: 'none',
-                    }
-                }}
-            >
-                {toastCable && (
-                    <Box
-                        sx={{
-                            minWidth: 100,
-                            maxWidth: 300,
-                            borderRadius: 2,
-                            background: '#fff',
-                            color: '#1a2a4b',
-                            boxShadow: 6,
-
-                            p: 0,
-                            position: 'relative',
-                            fontSize: 16,
-                            lineHeight: 1.7,
-                        }}
-                    >
-                        {/* Colored header bar */}
-                        <Box
-                            sx={{
-                                width: '100%',
-                                height: 40,
-                                background: CUT_TYPE_COLORS[(toastCable.cut_type || 'FULL CUT').toUpperCase()] || '#B71C1C',
-                                borderTopLeftRadius: 8,
-                                borderTopRightRadius: 8,
-                                display: 'flex',
-                                alignItems: 'center',
-                                justifyContent: 'center',
-                                mb: 0,
-                            }}
-                        >
-                            <Typography
-                                variant="h6"
-                                sx={{
-                                    fontWeight: 800,
-                                    color: '#fff',
-                                    fontSize: 20,
-                                    letterSpacing: 1,
-                                    textAlign: 'center',
-                                }}
-                            >
-                                {(toastCable.cut_type || 'FULL CUT').toUpperCase()}
-                            </Typography>
-                        </Box>
-                        {/* Close button */}
-                        <IconButton
-                            size="small"
-                            aria-label="close"
-                            color="inherit"
-                            onClick={handleCloseToast}
-                            sx={{ position: 'absolute', top: 6, right: 6, zIndex: 2 }}
-                        >
-                            <CloseIcon fontSize="small" />
-                        </IconButton>
-                        {/* Details */}
-                        <Box sx={{ p: 2.5, pt: 2 }}>
-                            <Typography sx={{ mb: 0.5, fontSize: 16 }}>
-                                <b>Distance:</b> <span style={{ fontWeight: 500 }}>{toastCable.distance ? `${toastCable.distance.toLocaleString()} km` : 'N/A'}</span>
-                            </Typography>
-                            <Typography sx={{ mb: 0.5, fontSize: 16 }}>
-                                <b>Depth:</b> <span style={{ fontWeight: 500 }}>{toastCable.depth ? `${toastCable.depth} m` : 'N/A'}</span>
-                            </Typography>
-                            <Typography sx={{ mb: 0.5, fontSize: 16 }}>
-                                <b>Latitude:</b> <span style={{ fontWeight: 500 }}>{toastCable.latitude || 'N/A'}</span>
-                            </Typography>
-                            <Typography sx={{ mb: 0.5, fontSize: 16 }}>
-                                <b>Longitude:</b> <span style={{ fontWeight: 500 }}>{toastCable.longitude || 'N/A'}</span>
-                            </Typography>
-                            <Typography sx={{ mb: 0.5, fontSize: 16 }}>
-                                <b>Cable Type:</b> <span style={{ fontWeight: 500 }}>{toastCable.cable_type || 'Unknown'}</span>
-                            </Typography>
-                            <Typography sx={{ mb: 2, fontSize: 16 }}>
-                                <b>Fault Date:</b> <span style={{ fontWeight: 500 }}>{formatDate(toastCable.fault_date)}</span>
-                            </Typography>
-
-                            {isAdmin && isUser && (
-                                <Button
-                                    variant="contained"
-                                    color="error"
-                                    size="medium"
-                                    fullWidth
-                                    onClick={() => handleDeleteCable(toastCable)}
-                                    sx={{
-                                        fontWeight: 'bold',
-                                        textTransform: 'none',
-                                        fontSize: 16,
-                                        borderRadius: 1,
-                                        mt: 1,
-                                        mb: 1,
-                                        background: '#B71C1C',
-                                        '&:hover': { background: '#a31515' },
-                                    }}
-                                >
-                                    Delete
-                                </Button>
-                            )}
-                            <Button
-                                variant="outlined"
-                                size="medium"
-                                fullWidth
-                                onClick={handleCloseToast}
-                                sx={{
-                                    color: '#3854A5',
-                                    borderColor: '#3854A5',
-                                    fontWeight: 'bold',
-                                    textTransform: 'none',
-                                    fontSize: 16,
-                                    borderRadius: 1,
-                                    mb: 1,
-                                }}
-                            >
-                                Close
-                            </Button>
-                        </Box>
-                    </Box>
-                )}
-            </Snackbar>
         </>
     );
 };

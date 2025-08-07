@@ -274,6 +274,7 @@ const CableMap: React.FC<CableMapProps> = ({ selectedCable, selectedCutType }) =
             }}
             lastUpdate={lastUpdate}
             setLastUpdate={setLastUpdate}
+            mapRef={mapRef}
           />
         </Paper>
       )}
