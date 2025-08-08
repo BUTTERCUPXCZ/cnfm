@@ -5,15 +5,33 @@ import {
   Box,
   Grid,
   Typography,
-  useTheme,
   Container
 } from '@mui/material';
 import Header from 'src/components/Header';
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState, useRef } from 'react';
 import UserCableMap from './UserCableMap';
+import L from 'leaflet';
 
+// Types
+interface LegendItem {
+  name: string;
+  color: string;
+}
 
-const legendItems = [
+interface CableData {
+  cut_id?: string;
+  latitude: number;
+  longitude: number;
+  distance?: number;
+  depth?: number;
+  fault_date?: string;
+  cut_type?: string;
+  cable_type?: string;
+  simulated?: string;
+  [key: string]: any; // for other properties
+}
+
+const legendItems: LegendItem[] = [
   { name: 'TGN-IA', color: 'yellow' },
   { name: 'SJC', color: 'blue' },
   { name: 'SEA-US', color: 'green' },
@@ -21,15 +39,27 @@ const legendItems = [
 ];
 
 function UserDashboard() {
-  const theme = useTheme();
   const apiBaseUrl = process.env.REACT_APP_API_BASE_URL;
   const port = process.env.REACT_APP_PORT;
   const [lastUpdate, setLastUpdate] = useState<string | null>(null);
+  const [selectedCable, setSelectedCable] = useState<CableData | null>(null);
+  const [selectedCutType, setSelectedCutType] = useState<string | null>(null);
+  const mapRef = useRef<L.Map | null>(null);
 
   // ✅ Create a reusable fetch function
-  const fetchLastUpdate = useCallback(async () => {
+  const fetchLastUpdate = useCallback(async (): Promise<boolean> => {
     try {
+      if (!apiBaseUrl || !port) {
+        console.error('API configuration missing');
+        return false;
+      }
+
       const response = await fetch(`${apiBaseUrl}${port}/latest-update`);
+      
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      
       const data = await response.json();
 
       if (data?.update?.date_time) {
@@ -101,7 +131,7 @@ function UserDashboard() {
             <Card>
               <Grid spacing={0} container>
                 <Grid item xs={12}>
-                  <Box p={4}>
+                  <Box p={4} sx={{ position: 'relative' }}>
                     <Header />
                     <Box
                       sx={{
@@ -140,8 +170,34 @@ function UserDashboard() {
                         </Typography>
                       </Box>
                     </Box>
+                    {/* Cut Type Selection */}
+                    <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
+                      <Typography variant="body2" sx={{ mr: 2 }}>Select cut type:</Typography>
+                      {['Shunt Fault', 'Partial Fiber Break', 'Fiber Break', 'Full Cut'].map((type) => (
+                        <Box key={type} sx={{ display: 'flex', alignItems: 'center', mr: 3 }}>
+                          <input
+                            type="radio"
+                            id={type}
+                            name="cutType"
+                            value={type}
+                            checked={selectedCutType === type}
+                            onChange={() => setSelectedCutType(type)}
+                            style={{ marginRight: 6 }}
+                          />
+                          <label htmlFor={type} style={{ color: '#5A6278', fontSize: 16 }}>{type}</label>
+                        </Box>
+                      ))}
+                    </Box>
                     {/* Map Container */}
-                    <UserCableMap />
+                    <UserCableMap 
+                      selectedCable={selectedCable} 
+                      selectedCutType={selectedCutType} 
+                      mapRef={mapRef}
+                      onCloseCablePopup={() => {
+                        setSelectedCable(null);
+                        setSelectedCutType(null);
+                      }}
+                    />
                   </Box>
                 </Grid>
               </Grid>

@@ -410,6 +410,22 @@ const HideToolTip = () => {
                 alignItems: 'center',
                 justifyContent: 'flex-start',
                 overflowY: 'auto',
+                // Enhanced scrollbar styling
+                '&::-webkit-scrollbar': { 
+                    width: '8px',
+                    backgroundColor: 'rgba(0,0,0,0.05)'
+                },
+                '&::-webkit-scrollbar-thumb': { 
+                    background: 'rgba(0,0,0,0.3)', 
+                    borderRadius: '4px',
+                    '&:hover': {
+                        background: 'rgba(0,0,0,0.4)'
+                    }
+                },
+                '&::-webkit-scrollbar-track': {
+                    background: 'rgba(0,0,0,0.1)',
+                    borderRadius: '4px'
+                }
             }}
         >
             <Typography

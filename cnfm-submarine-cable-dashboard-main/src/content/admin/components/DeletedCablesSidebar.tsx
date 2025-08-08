@@ -292,13 +292,29 @@ const DeletedCablesSidebar: React.FC<DeletedCablesSidebarProps> = ({
             currentMarkerRef.current = null;
         }
 
-        // Center the map camera on the marker position when an admin clicks a deleted cable
+        // Position the map camera so the marker appears slightly below center for better visibility
         // Only do this for admin (isAdmin)
         if (isAdmin && map.setView) {
             // Stop any ongoing animations first
             map.stop();
+            
+            // Calculate offset to position marker slightly below center of viewport
+            const mapContainer = map.getContainer();
+            const mapHeight = mapContainer.clientHeight;
+            const mapWidth = mapContainer.clientWidth;
+            
+            // Convert the target position to pixel coordinates
+            const targetPoint = map.project(position, 14);
+            
+            // Offset the view so marker appears slightly below center (roughly 60% down from top)
+            const offsetY = mapHeight * 0.15; // Reduced offset for more centered positioning
+            const adjustedPoint = L.point(targetPoint.x, targetPoint.y - offsetY);
+            
+            // Convert back to lat/lng
+            const adjustedCenter = map.unproject(adjustedPoint, 14);
+            
             // Use a higher zoom level for better focus (increased from 10 to 14)
-            map.setView(position, 14, { 
+            map.setView([adjustedCenter.lat, adjustedCenter.lng], 14, { 
                 animate: true,
                 duration: 0.8,
                 easeLinearity: 0.2
@@ -609,7 +625,21 @@ const DeletedCablesSidebar: React.FC<DeletedCablesSidebarProps> = ({
         
         // Enhanced map positioning for admin clicks
         if (isAdmin) {
-            map.setView(position, targetZoom, { 
+            // Calculate offset to position marker slightly below center of viewport for final positioning
+            const mapContainer = map.getContainer();
+            const mapHeight = mapContainer.clientHeight;
+            
+            // Convert the target position to pixel coordinates
+            const targetPoint = map.project(position, 14);
+            
+            // Offset the view so marker appears slightly below center (roughly 60% down from top)
+            const offsetY = mapHeight * 0.15; // Reduced offset for more centered positioning
+            const adjustedPoint = L.point(targetPoint.x, targetPoint.y - offsetY);
+            
+            // Convert back to lat/lng
+            const adjustedCenter = map.unproject(adjustedPoint, 14);
+            
+            map.setView([adjustedCenter.lat, adjustedCenter.lng], 14, { 
                 animate: true,
                 duration: 0.8, // Slightly longer animation for smoother experience
                 easeLinearity: 0.2 // Smoother easing
@@ -618,13 +648,24 @@ const DeletedCablesSidebar: React.FC<DeletedCablesSidebarProps> = ({
         
         // Simplified positioning verification with minimal delay
         setTimeout(() => {
-            // Quick position check and correction if needed
-            const currentCenter = map.getCenter();
-            const distance = Math.abs(currentCenter.lat - lat) + Math.abs(currentCenter.lng - lng);
-            
-            if (distance > 0.001) { // If map is not close enough, force it
-                console.log('Map not at exact position, correcting...');
-                map.setView(position, targetZoom, { animate: false }); // No animation for correction
+            // Quick position check and correction if needed for centered positioning
+            if (isAdmin) {
+                const currentCenter = map.getCenter();
+                const mapContainer = map.getContainer();
+                const mapHeight = mapContainer.clientHeight;
+                
+                // Calculate what the center should be for slightly below center positioning
+                const targetPoint = map.project(position, 14);
+                const offsetY = mapHeight * 0.15; // Reduced offset for more centered positioning
+                const adjustedPoint = L.point(targetPoint.x, targetPoint.y - offsetY);
+                const expectedCenter = map.unproject(adjustedPoint, 14);
+                
+                const distance = Math.abs(currentCenter.lat - expectedCenter.lat) + Math.abs(currentCenter.lng - expectedCenter.lng);
+                
+                if (distance > 0.01) { // If map is not close enough to expected position, correct it
+                    console.log('Map not at expected centered position, correcting...');
+                    map.setView([expectedCenter.lat, expectedCenter.lng], 14, { animate: false });
+                }
             }
             
             console.log('Final marker position:', marker.getLatLng());
