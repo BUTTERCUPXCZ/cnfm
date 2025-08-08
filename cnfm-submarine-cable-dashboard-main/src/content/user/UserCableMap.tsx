@@ -207,12 +207,20 @@ const UserCableMap = ({ selectedCable }: UserCableMapProps) => {
     };
   }, []);
 
-  // Pan/zoom to selected cable location if selectedCable changes
+  // Pan/zoom to selected cable location if selectedCable changes with smooth transition
   const mapRef = useRef<any>(null);
   useEffect(() => {
     if (selectedCable && selectedCable.latitude && selectedCable.longitude && mapRef.current) {
       const map = mapRef.current;
-      map.setView([selectedCable.latitude, selectedCable.longitude], 10, { animate: true });
+      // Stop any ongoing animations before starting new one to prevent conflicts
+      map.stop();
+      
+      // Apply smooth transition with enhanced animation parameters
+      map.setView([selectedCable.latitude, selectedCable.longitude], 14, { 
+        animate: true,
+        duration: 0.8, // Slightly longer animation for smoother experience
+        easeLinearity: 0.2 // Smoother easing
+      });
     }
   }, [selectedCable]);
   const [mapHeight, setMapHeight] = useState('600px');
@@ -396,9 +404,17 @@ const UserCableMap = ({ selectedCable }: UserCableMapProps) => {
           <DeletedCablesSidebar
             onSelectCable={(cable) => {
               setSelectedDeletedCable(cable);
-              // Pan the map to the cable's location if available
+              // Pan the map to the cable's location with smooth transition
               if (cable && cable.latitude && cable.longitude && mapRef.current) {
-                mapRef.current.setView([cable.latitude, cable.longitude], 8, { animate: true });
+                // Stop any ongoing animations before starting new one to prevent conflicts
+                mapRef.current.stop();
+                
+                // Apply smooth transition with enhanced animation parameters
+                mapRef.current.setView([cable.latitude, cable.longitude], 14, { 
+                  animate: true,
+                  duration: 0.8, // Slightly longer animation for smoother experience
+                  easeLinearity: 0.2 // Smoother easing
+                });
               }
             }}
             lastUpdate={lastUpdate}

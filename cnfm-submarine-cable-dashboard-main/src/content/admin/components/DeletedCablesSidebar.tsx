@@ -229,6 +229,8 @@ const DeletedCablesSidebar: React.FC<DeletedCablesSidebarProps> = ({
     const handleCableClick = (cable: CableCut, event: React.MouseEvent) => {
         event.stopPropagation();
         
+        console.log('Cable clicked by admin:', cable.cut_id, 'Admin status:', isAdmin);
+        
         // Stop any ongoing map animations to prevent conflicts
         if (mapRef?.current) {
             mapRef.current.stop();
@@ -236,6 +238,10 @@ const DeletedCablesSidebar: React.FC<DeletedCablesSidebarProps> = ({
         
         // Always remove existing marker first to ensure consistent behavior
         if (currentMarkerRef.current && mapRef?.current) {
+            // Clean up event listeners first
+            if ((currentMarkerRef.current as any)._customEventCleanup) {
+                (currentMarkerRef.current as any)._customEventCleanup();
+            }
             mapRef.current.removeLayer(currentMarkerRef.current);
             currentMarkerRef.current = null;
         }
@@ -244,6 +250,12 @@ const DeletedCablesSidebar: React.FC<DeletedCablesSidebarProps> = ({
         setSelectedCable(cable);
         setShowMapMarker(true);
         setMarkerClickCount(prev => prev + 1); // Force effect to trigger even for same cable
+        
+        // Show loading notification for admin users
+        if (isAdmin) {
+            showNotification(`Focusing map on cable ${cable.cut_id}...`, 'info');
+        }
+        
         // onSelectCable will be called after marker is created and positioned
     };
 
@@ -283,8 +295,14 @@ const DeletedCablesSidebar: React.FC<DeletedCablesSidebarProps> = ({
         // Center the map camera on the marker position when an admin clicks a deleted cable
         // Only do this for admin (isAdmin)
         if (isAdmin && map.setView) {
-            // Use a reasonable zoom level for focus
-            map.setView(position, 10, { animate: true });
+            // Stop any ongoing animations first
+            map.stop();
+            // Use a higher zoom level for better focus (increased from 10 to 14)
+            map.setView(position, 14, { 
+                animate: true,
+                duration: 0.8,
+                easeLinearity: 0.2
+            });
         }
 
         // Create marker style based on cut type
@@ -335,44 +353,48 @@ const DeletedCablesSidebar: React.FC<DeletedCablesSidebarProps> = ({
 
         // Create popup content with inline functions
         const popupContent = `
-            <div class="cable-cut-popup" style="font-family: Arial, sans-serif; width: 250px; box-shadow: 0 2px 5px rgba(0,0,0,0.2); border-radius: 4px; overflow: hidden;">
-                <div style="background-color: ${markerStyle.color}; color: white; padding: 8px; text-align: center; font-weight: bold; font-size: 14px; letter-spacing: 0.5px;">
+            <div class="cable-cut-popup" style="font-family: Arial, sans-serif; width: 200px; box-shadow: 0 4px 12px rgba(0,0,0,0.3); border-radius: 5px; overflow: hidden; border: 2px solid ${markerStyle.color};">
+                <div style="background-color: ${markerStyle.color}; color: white; padding: 6px; text-align: center; font-weight: bold; font-size: 13px; letter-spacing: 0.3px; text-shadow: 1px 1px 2px rgba(0,0,0,0.3);">
                     ${cable.cut_type.toUpperCase()}
                 </div>
-                <div style="background-color: white; padding: 12px;">
-                    <table style="width: 100%; border-collapse: collapse; font-size: 13px;">
+                <div style="background-color: white; padding: 10px;">
+                    <table style="width: 100%; border-collapse: collapse; font-size: 12px;">
                         <tr>
-                            <td style="font-weight: bold; padding-bottom: 8px;">Distance:</td>
-                            <td style="text-align: right; padding-bottom: 8px;">${Number(cable.distance).toFixed(3)} km</td>
+                            <td style="font-weight: bold; padding-bottom: 5px; color: #333;">Distance:</td>
+                            <td style="text-align: right; padding-bottom: 5px; color: #666;">${Number(cable.distance).toFixed(2)} km</td>
                         </tr>
                         <tr>
-                            <td style="font-weight: bold; padding-bottom: 8px;">Depth:</td>
-                            <td style="text-align: right; padding-bottom: 8px;">${cable.depth || 'Unknown'} m</td>
+                            <td style="font-weight: bold; padding-bottom: 5px; color: #333;">Depth:</td>
+                            <td style="text-align: right; padding-bottom: 5px; color: #666;">${cable.depth || 'N/A'} m</td>
                         </tr>
                         <tr>
-                            <td style="font-weight: bold; padding-bottom: 8px;">Latitude:</td>
-                            <td style="text-align: right; padding-bottom: 8px;">${lat}</td>
+                            <td style="font-weight: bold; padding-bottom: 5px; color: #333;">Lat:</td>
+                            <td style="text-align: right; padding-bottom: 5px; color: #666; font-family: monospace; font-size: 11px;">${lat.toFixed(4)}</td>
                         </tr>
                         <tr>
-                            <td style="font-weight: bold; padding-bottom: 8px;">Longitude:</td>
-                            <td style="text-align: right; padding-bottom: 8px;">${lng}</td>
+                            <td style="font-weight: bold; padding-bottom: 5px; color: #333;">Lng:</td>
+                            <td style="text-align: right; padding-bottom: 5px; color: #666; font-family: monospace; font-size: 11px;">${lng.toFixed(4)}</td>
                         </tr>
                         <tr>
-                            <td style="font-weight: bold; padding-bottom: 8px;">Fault Date:</td>
-                            <td style="text-align: right; padding-bottom: 8px;">${
+                            <td style="font-weight: bold; padding-bottom: 5px; color: #333;">Date:</td>
+                            <td style="text-align: right; padding-bottom: 5px; color: #666; font-size: 11px;">${
                                 cable.fault_date
                                     ? new Date(cable.fault_date).toLocaleDateString('en-US', {
-                                        year: 'numeric',
-                                        month: 'long',
-                                        day: 'numeric'
+                                        month: 'short',
+                                        day: 'numeric',
+                                        year: '2-digit'
                                     })
-                                    : 'Not specified'
+                                    : 'N/A'
                             }</td>
+                        </tr>
+                        <tr>
+                            <td style="font-weight: bold; color: #333;">ID:</td>
+                            <td style="text-align: right; color: #666; font-family: monospace; font-size: 11px;">${cable.cut_id.length > 12 ? cable.cut_id.substring(0, 12) + '...' : cable.cut_id}</td>
                         </tr>
                     </table>
                 </div>
                 ${(isAdmin && isUser) ? `
-                    <div style="background-color: #f8f9fa; padding: 12px; border-top: 1px solid #dee2e6; display: flex; flex-direction: column; gap: 8px;">
+                    <div style="background-color: #f8f9fa; padding: 10px; border-top: 1px solid #dee2e6; display: flex; flex-direction: column; gap: 6px;">
                         <button class="delete-marker-btn" data-cut-id="${cable.cut_id}" onclick="
                             console.log('Delete button clicked for cable: ${cable.cut_id}');
                             const deleteEvent = new CustomEvent('popupDeleteCable', { detail: { cutId: '${cable.cut_id}' } });
@@ -381,15 +403,16 @@ const DeletedCablesSidebar: React.FC<DeletedCablesSidebarProps> = ({
                             background-color: #dc3545;
                             color: white;
                             border: none;
-                            padding: 8px 12px;
+                            padding: 6px 10px;
                             border-radius: 4px;
                             cursor: pointer;
-                            font-size: 12px;
+                            font-size: 11px;
                             font-weight: bold;
                             width: 100%;
-                            transition: background-color 0.2s;
+                            transition: all 0.2s;
+                            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
                         ">
-                            Delete
+                            🗑️ Delete
                         </button>
                       <button class="close-popup-btn" onclick="
                             console.log('Close button clicked');
@@ -399,19 +422,20 @@ const DeletedCablesSidebar: React.FC<DeletedCablesSidebarProps> = ({
                             background-color: #6c757d;
                             color: white;
                             border: none;
-                            padding: 8px 12px;
+                            padding: 6px 10px;
                             border-radius: 4px;
                             cursor: pointer;
-                            font-size: 12px;
+                            font-size: 11px;
                             font-weight: bold;
                             width: 100%;
-                            transition: background-color 0.2s;
+                            transition: all 0.2s;
+                            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
                         ">
-                            Close
+                            ✕ Close
                         </button>
                     </div>
                 ` : `
-                    <div style="background-color: #f8f9fa; padding: 12px; border-top: 1px solid #dee2e6;">
+                    <div style="background-color: #f8f9fa; padding: 10px; border-top: 1px solid #dee2e6;">
                         <button class="close-popup-btn" onclick="
                             console.log('Close button clicked');
                             const closeEvent = new CustomEvent('popupClose');
@@ -420,15 +444,16 @@ const DeletedCablesSidebar: React.FC<DeletedCablesSidebarProps> = ({
                             background-color: #6c757d;
                             color: white;
                             border: none;
-                            padding: 8px 12px;
+                            padding: 6px 10px;
                             border-radius: 4px;
                             cursor: pointer;
-                            font-size: 12px;
+                            font-size: 11px;
                             font-weight: bold;
                             width: 100%;
-                            transition: background-color 0.2s;
+                            transition: all 0.2s;
+                            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
                         ">
-                            Close
+                            ✕ Close
                         </button>
                     </div>
                 `}
@@ -455,48 +480,56 @@ const DeletedCablesSidebar: React.FC<DeletedCablesSidebarProps> = ({
                         z-index: 1000;
                     }
                     .deleted-cable-custom-popup .leaflet-popup-content-wrapper {
-                        border-radius: 4px;
-                        box-shadow: 0 2px 10px rgba(0,0,0,0.3);
+                        border-radius: 6px;
+                        box-shadow: 0 4px 20px rgba(0,0,0,0.4);
                     }
                     .delete-marker-btn {
                         background-color: #dc3545 !important;
                         color: white !important;
                         border: none !important;
-                        padding: 8px 12px !important;
+                        padding: 6px 10px !important;
                         border-radius: 4px !important;
                         cursor: pointer !important;
-                        font-size: 12px !important;
+                        font-size: 11px !important;
                         font-weight: bold !important;
                         width: 100% !important;
-                        transition: background-color 0.2s !important;
+                        transition: all 0.3s !important;
                         margin: 0 !important;
                         outline: none !important;
+                        box-shadow: 0 1px 3px rgba(0,0,0,0.1) !important;
                     }
                     .delete-marker-btn:hover {
                         background-color: #c82333 !important;
+                        box-shadow: 0 2px 4px rgba(0,0,0,0.2) !important;
+                        transform: translateY(-1px) !important;
                     }
                     .delete-marker-btn:active {
                         background-color: #bd2130 !important;
+                        transform: translateY(0) !important;
                     }
                     .close-popup-btn {
                         background-color: #6c757d !important;
                         color: white !important;
                         border: none !important;
-                        padding: 8px 12px !important;
+                        padding: 6px 10px !important;
                         border-radius: 4px !important;
                         cursor: pointer !important;
-                        font-size: 12px !important;
+                        font-size: 11px !important;
                         font-weight: bold !important;
                         width: 100% !important;
-                        transition: background-color 0.2s !important;
+                        transition: all 0.3s !important;
                         margin: 0 !important;
                         outline: none !important;
+                        box-shadow: 0 1px 3px rgba(0,0,0,0.1) !important;
                     }
                     .close-popup-btn:hover {
                         background-color: #5a6268 !important;
+                        box-shadow: 0 2px 4px rgba(0,0,0,0.2) !important;
+                        transform: translateY(-1px) !important;
                     }
                     .close-popup-btn:active {
                         background-color: #545b62 !important;
+                        transform: translateY(0) !important;
                     }
                 `;
                 document.head.appendChild(style);
@@ -509,8 +542,8 @@ const DeletedCablesSidebar: React.FC<DeletedCablesSidebarProps> = ({
         // Create popup with positioning to show above the marker
         const popup = L.popup({
             className: 'deleted-cable-custom-popup',
-            maxWidth: 250,
-            minWidth: 250,
+            maxWidth: 210,
+            minWidth: 200,
             closeButton: false, // Remove the X button
             autoClose: false,
             closeOnClick: false,
@@ -571,14 +604,17 @@ const DeletedCablesSidebar: React.FC<DeletedCablesSidebarProps> = ({
         map.stop();
         
         // Force map to focus exactly on the marker coordinates with appropriate zoom
-        const targetZoom = 10; // Fixed zoom level for consistent viewing
+        const targetZoom = 14; // Increased zoom level for better detail view
         console.log('Panning map to:', { position, targetZoom });
-        // (map.setView already called above for admin click)
-        map.setView(position, targetZoom, { 
-            animate: true,
-            duration: 0.5, // Much shorter animation for immediate response
-            easeLinearity: 0.1 // Smoother easing
-        });
+        
+        // Enhanced map positioning for admin clicks
+        if (isAdmin) {
+            map.setView(position, targetZoom, { 
+                animate: true,
+                duration: 0.8, // Slightly longer animation for smoother experience
+                easeLinearity: 0.2 // Smoother easing
+            });
+        }
         
         // Simplified positioning verification with minimal delay
         setTimeout(() => {
@@ -593,10 +629,13 @@ const DeletedCablesSidebar: React.FC<DeletedCablesSidebarProps> = ({
             
             console.log('Final marker position:', marker.getLatLng());
             console.log('Final map center:', map.getCenter());
+            
+            // Ensure popup opens after positioning is complete
             marker.openPopup();
+            
             // Now that marker is created and positioned, notify the parent component
             onSelectCable(cable);
-        }, 550); // Match animation duration plus minimal buffer
+        }, 850); // Match animation duration plus buffer
     };
 
     const handleCloseToast = (

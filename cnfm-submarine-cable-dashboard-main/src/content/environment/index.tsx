@@ -140,9 +140,17 @@ function SimulationEnvironment() {
                     <DeletedCablesSidebar
                       onSelectCable={(cable: CableCut) => {
                         setSelectedCable(cable);
-                        // Pan the map to the cable's location using mapRef
+                        // Pan the map to the cable's location using mapRef with smooth transition
                         if (cable && cable.latitude && cable.longitude && mapRef.current) {
-                          mapRef.current.setView([cable.latitude, cable.longitude], 8, { animate: true });
+                          // Stop any ongoing animations before starting new one to prevent conflicts
+                          mapRef.current.stop();
+                          
+                          // Apply smooth transition with enhanced animation parameters
+                          mapRef.current.setView([cable.latitude, cable.longitude], 14, { 
+                            animate: true,
+                            duration: 0.8, // Slightly longer animation for smoother experience
+                            easeLinearity: 0.2 // Smoother easing
+                          });
                         }
                       }}
                       lastUpdate={lastUpdate}

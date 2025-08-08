@@ -126,38 +126,30 @@ interface SimulationMapProps {
 const SimulationMap: React.FC<SimulationMapProps> = ({ selectedCable, mapRef: externalMapRef }) => {
   const [mapHeight, setMapHeight] = useState('60vh');
   
-  // Pan/zoom to selected cable location
+  // Pan/zoom to selected cable location with smooth transition
   useEffect(() => {
     if (selectedCable && selectedCable.latitude && selectedCable.longitude) {
       // Use external mapRef if provided, otherwise use internal mapRef
       const map = externalMapRef?.current || mapRef.current;
       if (map) {
-        map.setView([selectedCable.latitude, selectedCable.longitude], 10, {
-          animate: true
-        });
+        // Small delay to ensure map is fully ready and prevent flickering
+        const timeoutId = setTimeout(() => {
+          // Stop any ongoing animations before starting new one to prevent conflicts
+          map.stop();
+          
+          // Apply smooth transition with enhanced animation parameters
+          map.setView([selectedCable.latitude, selectedCable.longitude], 14, {
+            animate: true,
+            duration: 0.8, // Slightly longer animation for smoother experience
+            easeLinearity: 0.2 // Smoother easing
+          });
+        }, 50); // 50ms delay to prevent flickering
+
+        return () => clearTimeout(timeoutId);
       }
     }
   }, [selectedCable, externalMapRef]);
-  useEffect(() => {
-    const updateMapHeight = () => {
-      const screenWidth = window.innerWidth;
-      const screenHeight = window.innerHeight;
-      
-      // Calculate height based on available space
-      if (screenHeight > 900) {
-        setMapHeight('70vh');
-      } else if (screenHeight > 700) {
-        setMapHeight('65vh');
-      } else {
-        setMapHeight('60vh');
-      }
-    };
 
-    updateMapHeight();
-    window.addEventListener('resize', updateMapHeight);
-
-    return () => window.removeEventListener('resize', updateMapHeight);
-  }, []);
   const [ipopUtilization, setIpopUtilization] = useState('0%');
   const [ipopDifference, setIpopDifference] = useState('0%');
   const [rightSidebarOpen, setRightSidebarOpen] = useState(false);
@@ -171,22 +163,27 @@ const SimulationMap: React.FC<SimulationMapProps> = ({ selectedCable, mapRef: ex
   const port = process.env.REACT_APP_PORT;
   const mapApiKey = process.env.REACT_APP_GEOAPIFY_API_KEY;
 
-  // Function to update height dynamically
-  const updateMapHeight = () => {
-    const screenWidth = window.innerWidth;
-
-    if (screenWidth > 1600) {
-      setMapHeight('800px');
-    } else if (screenWidth > 1200) {
-      setMapHeight('700px');
-    } else {
-      setMapHeight('600px');
-    }
-  };
-
-  // Listen for window resize
+  // Single consolidated map height update function
   useEffect(() => {
-    updateMapHeight(); // Set initial height
+    const updateMapHeight = () => {
+      const screenWidth = window.innerWidth;
+      const screenHeight = window.innerHeight;
+      
+      // Calculate height based on available space, prioritizing screen height
+      if (screenHeight > 900 && screenWidth > 1600) {
+        setMapHeight('800px');
+      } else if (screenHeight > 700 && screenWidth > 1200) {
+        setMapHeight('700px');
+      } else if (screenHeight > 900) {
+        setMapHeight('70vh');
+      } else if (screenHeight > 700) {
+        setMapHeight('65vh');
+      } else {
+        setMapHeight('60vh');
+      }
+    };
+
+    updateMapHeight();
     window.addEventListener('resize', updateMapHeight);
     return () => window.removeEventListener('resize', updateMapHeight);
   }, []);
