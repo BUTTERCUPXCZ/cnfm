@@ -55,7 +55,7 @@ function SimulationEnvironment() {
         alignItems="center"
         justifyContent="space-between"
         sx={{ pb: 3, px: 2 }}
-      ></Box>ss
+      ></Box>
 
       <Container maxWidth="xl">
         {/* Simulation Environment Indicator */}
@@ -150,6 +150,7 @@ function SimulationEnvironment() {
                       isAdmin={true}  // <-- Allow admin functionality for simulation environment
                       isUser={true}   // <-- Enable user functionality
                       mapRef={mapRef}
+                      onCloseSidebar={() => setSidebarOpen(false)} // Add close function
                     />
                   </Paper>
                 )}

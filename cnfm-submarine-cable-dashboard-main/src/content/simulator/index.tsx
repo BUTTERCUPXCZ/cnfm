@@ -5,18 +5,27 @@ import {
   Box,
   Grid,
   Typography,
-  useTheme,
-  Container,
-  Button
+  Container
 } from '@mui/material';
-import Swal from 'sweetalert2';
 import Header from 'src/components/Header';
 import React, { useCallback, useEffect, useState, useRef } from 'react';
 import CableMap from '../admin/components/CableMap';
-import DeletedCablesSidebar from '../admin/components/DeletedCablesSidebar';
 import L from 'leaflet';
 
-const legendItems = [
+// Types
+interface LegendItem {
+  name: string;
+  color: string;
+}
+
+interface CableData {
+  cut_id: string;
+  latitude: number;
+  longitude: number;
+  [key: string]: any; // for other properties
+}
+
+const legendItems: LegendItem[] = [
   { name: 'TGN-IA', color: 'yellow' },
   { name: 'SJC', color: 'blue' },
   { name: 'SEA-US', color: 'green' },
@@ -24,20 +33,27 @@ const legendItems = [
 ];
 
 function SimulatorDashboard() {
-  const theme = useTheme();
   const apiBaseUrl = process.env.REACT_APP_API_BASE_URL;
   const port = process.env.REACT_APP_PORT;
-  const fileInputRef = React.useRef<HTMLInputElement | null>(null);
   const [lastUpdate, setLastUpdate] = useState<string | null>(null);
-  const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [selectedCable, setSelectedCable] = useState(null);
+  const [selectedCable, setSelectedCable] = useState<CableData | null>(null);
   const [selectedCutType, setSelectedCutType] = useState<string | null>(null);
   const mapRef = useRef<L.Map | null>(null);
 
   // ✅ Create a reusable fetch function
-  const fetchLastUpdate = useCallback(async () => {
+  const fetchLastUpdate = useCallback(async (): Promise<boolean> => {
     try {
+      if (!apiBaseUrl || !port) {
+        console.error('API configuration missing');
+        return false;
+      }
+
       const response = await fetch(`${apiBaseUrl}${port}/latest-update`);
+      
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      
       const data = await response.json();
 
       if (data?.update?.date_time) {
@@ -148,6 +164,10 @@ function SimulatorDashboard() {
                       selectedCable={selectedCable} 
                       selectedCutType={selectedCutType} 
                       mapRef={mapRef}
+                      onCloseCablePopup={() => {
+                        setSelectedCable(null);
+                        setSelectedCutType(null);
+                      }}
                     />
                   </Box>
                 </Grid>

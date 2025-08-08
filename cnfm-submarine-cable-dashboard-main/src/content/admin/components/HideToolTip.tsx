@@ -541,8 +541,8 @@ const HideToolTip = () => {
             </Typography>
 
             {cableSystemsData.map((system, index) => (
-                <Tooltip key={system.name} title="Click to view Individual Link Utilization" placement="top">
                     <Paper
+                        key={system.name}
                         onClick={() => handleSystemClick(system)}
                         sx={{
                             background: `linear-gradient(135deg, ${system.color}20 0%, ${system.color}10 100%)`,
@@ -698,11 +698,10 @@ const HideToolTip = () => {
                         <Typography variant="caption" sx={{ color: '#999', fontSize: '9px', mt: 1, display: 'block' }}>
                             Last updated: {system.lastUpdate.toLocaleTimeString()}
                         </Typography>
+                        
+                        
                     </Paper>
-                </Tooltip>
-            ))}
-
-            {/* Modal Dialog */}
+            ))}            {/* Modal Dialog */}
             {selectedSystem && (
                 <Dialog open={open} onClose={handleClose} maxWidth="sm" fullWidth>
                     <DialogTitle>

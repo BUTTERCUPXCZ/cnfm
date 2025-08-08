@@ -6,7 +6,14 @@ import {
     List,
     ListItem,
     Button,
-    IconButton
+    IconButton,
+    Snackbar,
+    Alert,
+    Dialog,
+    DialogTitle,
+    DialogContent,
+    DialogActions,
+    DialogContentText
 } from '@mui/material';
 import RefreshIcon from '@mui/icons-material/Refresh';
 import L from 'leaflet';
@@ -31,6 +38,7 @@ interface DeletedCablesSidebarProps {
     isAdmin?: boolean; // <-- Add this prop
     isUser?: boolean; // <-- Add this prop
     mapRef?: React.RefObject<L.Map>; // Add map reference
+    onCloseSidebar?: () => void; // Add close sidebar function
 }
 
 const DeletedCablesSidebar: React.FC<DeletedCablesSidebarProps> = ({
@@ -40,7 +48,8 @@ const DeletedCablesSidebar: React.FC<DeletedCablesSidebarProps> = ({
     phTime,
     isAdmin = true, // <-- Default to true for admin pages
     isUser = true, // <-- Default to true for user pages
-    mapRef
+    mapRef,
+    onCloseSidebar // Add close sidebar function
 }) => {
     const [deletedCables, setDeletedCables] = useState<CableCut[]>([]);
     const [loading, setLoading] = useState(true);
@@ -49,25 +58,172 @@ const DeletedCablesSidebar: React.FC<DeletedCablesSidebarProps> = ({
     const [showMapMarker, setShowMapMarker] = useState(false);
     const [markerClickCount, setMarkerClickCount] = useState(0); // Force re-render for same cable clicks
     const currentMarkerRef = useRef<L.Marker | null>(null);
+    
+    // Enhanced notification system
+    const [notification, setNotification] = useState<{
+        open: boolean;
+        message: string;
+        severity: 'success' | 'error' | 'warning' | 'info';
+    }>({
+        open: false,
+        message: '',
+        severity: 'info'
+    });
+    
+    // Delete confirmation dialog
+    const [deleteDialog, setDeleteDialog] = useState<{
+        open: boolean;
+        cable: CableCut | null;
+    }>({
+        open: false,
+        cable: null
+    });
+
+    const showNotification = (message: string, severity: 'success' | 'error' | 'warning' | 'info' = 'info') => {
+        setNotification({ open: true, message, severity });
+    };
+
+    const hideNotification = () => {
+        setNotification(prev => ({ ...prev, open: false }));
+    };
 
     const fetchDeletedCables = async () => {
         setLoading(true);
         setError(null);
         try {
             const response = await fetch('http://localhost:8081/fetch-cable-cuts');
+            
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            
             const data = await response.json();
             if (Array.isArray(data)) {
-                setDeletedCables(
-                    [...data].sort((a, b) => 0)
-                );
+                setDeletedCables([...data].sort((a, b) => 0));
             } else {
                 setDeletedCables([]);
             }
         } catch (err) {
-            setError('Failed to fetch deleted cables');
+            const errorMessage = err instanceof Error ? err.message : 'Failed to fetch deleted cables';
+            setError(errorMessage);
+            showNotification(errorMessage, 'error');
         } finally {
             setLoading(false);
         }
+    };
+
+    // Enhanced delete function
+    const handleDeleteCable = async (cable: CableCut) => {
+        if (!cable?.cut_id) {
+            showNotification('Invalid cable data', 'error');
+            return;
+        }
+
+        try {
+            setLoading(true);
+            const response = await fetch(
+                `http://localhost:8081/delete-single-cable-cuts/${cable.cut_id}`,
+                { 
+                    method: 'DELETE',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                }
+            );
+            
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            
+            const result = await response.json();
+            
+            if (result.success) {
+                // Close popup and remove marker
+                if (currentMarkerRef.current && mapRef?.current) {
+                    currentMarkerRef.current.closePopup();
+                    mapRef.current.removeLayer(currentMarkerRef.current);
+                    currentMarkerRef.current = null;
+                }
+                
+                // Reset states
+                setShowMapMarker(false);
+                setSelectedCable(null);
+                
+                // Refresh the deleted cables list
+                await fetchDeletedCables();
+                if (setLastUpdate) setLastUpdate(Date.now().toString());
+                
+                showNotification(`Cable ${cable.cut_id} deleted successfully!`, 'success');
+            } else {
+                throw new Error(result.message || 'Unknown error');
+            }
+        } catch (error) {
+            const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+            console.error('Error deleting cable:', error);
+            showNotification(`Error deleting cable: ${errorMessage}`, 'error');
+        } finally {
+            setLoading(false);
+            setDeleteDialog({ open: false, cable: null });
+        }
+    };
+
+    // Enhanced close function
+    const handleClosePopup = () => {
+        try {
+            // Clean up custom event listeners
+            if (currentMarkerRef.current && (currentMarkerRef.current as any)._customEventCleanup) {
+                (currentMarkerRef.current as any)._customEventCleanup();
+            }
+            
+            // Close popup and remove marker
+            if (currentMarkerRef.current && mapRef?.current) {
+                currentMarkerRef.current.closePopup();
+                mapRef.current.removeLayer(currentMarkerRef.current);
+                currentMarkerRef.current = null;
+            }
+            
+            // Reset states
+            setShowMapMarker(false);
+            setSelectedCable(null);
+            
+            console.log('Popup closed successfully');
+        } catch (error) {
+            console.error('Error closing popup:', error);
+            showNotification('Error closing popup', 'error');
+        }
+    };
+
+    // Popup delete function
+    const handlePopupDelete = (cable: CableCut) => {
+        try {
+            console.log('Popup delete initiated for cable:', cable.cut_id);
+            // Open confirmation dialog
+            openDeleteDialog(cable);
+        } catch (error) {
+            console.error('Error initiating popup delete:', error);
+            showNotification('Error initiating delete operation', 'error');
+        }
+    };
+
+    // Popup close function (wrapper for consistency)
+    const handlePopupClose = () => {
+        try {
+            console.log('Popup close initiated');
+            handleClosePopup();
+        } catch (error) {
+            console.error('Error closing popup:', error);
+            showNotification('Error closing popup', 'error');
+        }
+    };
+
+    // Open delete confirmation dialog
+    const openDeleteDialog = (cable: CableCut) => {
+        setDeleteDialog({ open: true, cable });
+    };
+
+    // Close delete confirmation dialog
+    const closeDeleteDialog = () => {
+        setDeleteDialog({ open: false, cable: null });
     };
 
     const handleCableClick = (cable: CableCut, event: React.MouseEvent) => {
@@ -124,6 +280,13 @@ const DeletedCablesSidebar: React.FC<DeletedCablesSidebarProps> = ({
             currentMarkerRef.current = null;
         }
 
+        // Center the map camera on the marker position when an admin clicks a deleted cable
+        // Only do this for admin (isAdmin)
+        if (isAdmin && map.setView) {
+            // Use a reasonable zoom level for focus
+            map.setView(position, 10, { animate: true });
+        }
+
         // Create marker style based on cut type
         const getMarkerStyle = (cutType: string) => {
             const styles: Record<string, any> = {
@@ -170,7 +333,7 @@ const DeletedCablesSidebar: React.FC<DeletedCablesSidebarProps> = ({
             zIndexOffset: 1000 // Ensure marker stays visible
         });
 
-        // Create popup content with exact same styling as CableCutFetching
+        // Create popup content with inline functions
         const popupContent = `
             <div class="cable-cut-popup" style="font-family: Arial, sans-serif; width: 250px; box-shadow: 0 2px 5px rgba(0,0,0,0.2); border-radius: 4px; overflow: hidden;">
                 <div style="background-color: ${markerStyle.color}; color: white; padding: 8px; text-align: center; font-weight: bold; font-size: 14px; letter-spacing: 0.5px;">
@@ -209,8 +372,12 @@ const DeletedCablesSidebar: React.FC<DeletedCablesSidebarProps> = ({
                     </table>
                 </div>
                 ${(isAdmin && isUser) ? `
-                    <div style="background-color: #f8f9fa; padding: 12px; border-top: 1px solid #dee2e6;">
-                        <button class="delete-marker-btn" data-cut-id="${cable.cut_id}" style="
+                    <div style="background-color: #f8f9fa; padding: 12px; border-top: 1px solid #dee2e6; display: flex; flex-direction: column; gap: 8px;">
+                        <button class="delete-marker-btn" data-cut-id="${cable.cut_id}" onclick="
+                            console.log('Delete button clicked for cable: ${cable.cut_id}');
+                            const deleteEvent = new CustomEvent('popupDeleteCable', { detail: { cutId: '${cable.cut_id}' } });
+                            document.dispatchEvent(deleteEvent);
+                        " style="
                             background-color: #dc3545;
                             color: white;
                             border: none;
@@ -224,8 +391,47 @@ const DeletedCablesSidebar: React.FC<DeletedCablesSidebarProps> = ({
                         ">
                             Delete
                         </button>
+                      <button class="close-popup-btn" onclick="
+                            console.log('Close button clicked');
+                            const closeEvent = new CustomEvent('popupClose');
+                            document.dispatchEvent(closeEvent);
+                        " style="
+                            background-color: #6c757d;
+                            color: white;
+                            border: none;
+                            padding: 8px 12px;
+                            border-radius: 4px;
+                            cursor: pointer;
+                            font-size: 12px;
+                            font-weight: bold;
+                            width: 100%;
+                            transition: background-color 0.2s;
+                        ">
+                            Close
+                        </button>
                     </div>
-                ` : ''}
+                ` : `
+                    <div style="background-color: #f8f9fa; padding: 12px; border-top: 1px solid #dee2e6;">
+                        <button class="close-popup-btn" onclick="
+                            console.log('Close button clicked');
+                            const closeEvent = new CustomEvent('popupClose');
+                            document.dispatchEvent(closeEvent);
+                        " style="
+                            background-color: #6c757d;
+                            color: white;
+                            border: none;
+                            padding: 8px 12px;
+                            border-radius: 4px;
+                            cursor: pointer;
+                            font-size: 12px;
+                            font-weight: bold;
+                            width: 100%;
+                            transition: background-color 0.2s;
+                        ">
+                            Close
+                        </button>
+                    </div>
+                `}
             </div>
         `;
 
@@ -244,29 +450,6 @@ const DeletedCablesSidebar: React.FC<DeletedCablesSidebarProps> = ({
                     }
                     .deleted-cable-custom-popup .leaflet-popup-tip-container,
                     .deleted-cable-custom-popup .leaflet-popup-tip { display: none; }
-                    .deleted-cable-custom-popup .leaflet-popup-close-button { 
-                        display: block !important;
-                        position: absolute;
-                        top: 6px;
-                        right: 6px;
-                        width: 24px;
-                        height: 24px;
-                        background: rgba(255, 255, 255, 0.9);
-                        border: 1px solid #ddd;
-                        border-radius: 3px;
-                        color: #666;
-                        font-size: 16px;
-                        font-weight: bold;
-                        text-align: center;
-                        line-height: 20px;
-                        cursor: pointer;
-                        z-index: 1001;
-                    }
-                    .deleted-cable-custom-popup .leaflet-popup-close-button:hover {
-                        background: #fff;
-                        color: #333;
-                        border-color: #999;
-                    }
                     .deleted-cable-custom-popup.leaflet-popup { 
                         margin-bottom: 0; 
                         z-index: 1000;
@@ -275,11 +458,45 @@ const DeletedCablesSidebar: React.FC<DeletedCablesSidebarProps> = ({
                         border-radius: 4px;
                         box-shadow: 0 2px 10px rgba(0,0,0,0.3);
                     }
+                    .delete-marker-btn {
+                        background-color: #dc3545 !important;
+                        color: white !important;
+                        border: none !important;
+                        padding: 8px 12px !important;
+                        border-radius: 4px !important;
+                        cursor: pointer !important;
+                        font-size: 12px !important;
+                        font-weight: bold !important;
+                        width: 100% !important;
+                        transition: background-color 0.2s !important;
+                        margin: 0 !important;
+                        outline: none !important;
+                    }
                     .delete-marker-btn:hover {
                         background-color: #c82333 !important;
                     }
                     .delete-marker-btn:active {
                         background-color: #bd2130 !important;
+                    }
+                    .close-popup-btn {
+                        background-color: #6c757d !important;
+                        color: white !important;
+                        border: none !important;
+                        padding: 8px 12px !important;
+                        border-radius: 4px !important;
+                        cursor: pointer !important;
+                        font-size: 12px !important;
+                        font-weight: bold !important;
+                        width: 100% !important;
+                        transition: background-color 0.2s !important;
+                        margin: 0 !important;
+                        outline: none !important;
+                    }
+                    .close-popup-btn:hover {
+                        background-color: #5a6268 !important;
+                    }
+                    .close-popup-btn:active {
+                        background-color: #545b62 !important;
                     }
                 `;
                 document.head.appendChild(style);
@@ -294,7 +511,7 @@ const DeletedCablesSidebar: React.FC<DeletedCablesSidebarProps> = ({
             className: 'deleted-cable-custom-popup',
             maxWidth: 250,
             minWidth: 250,
-            closeButton: true, // Enable the close button
+            closeButton: false, // Remove the X button
             autoClose: false,
             closeOnClick: false,
             offset: [0, -30] // Position popup above the marker so X is visible below
@@ -322,26 +539,33 @@ const DeletedCablesSidebar: React.FC<DeletedCablesSidebarProps> = ({
             setSelectedCable(null);
         });
 
-        // Prevent popup from closing on mouseout for consistent display
-        marker.on('popupopen', function (e) {
-            const popupElement = this.getPopup().getElement();
-            if (popupElement) {
-                // Add click event listener for delete button (only if user can delete)
-                if (isAdmin && isUser) {
-                    const deleteButton = popupElement.querySelector('.delete-marker-btn');
-                    if (deleteButton) {
-                        deleteButton.addEventListener('click', (e) => {
-                            e.stopPropagation();
-                            handleDeleteCable(cable);
-                        });
-                    }
-                }
-            }
-        });
-
         // Add marker to map
         marker.addTo(map);
         currentMarkerRef.current = marker;
+
+        // Add custom event listeners for popup buttons
+        const handlePopupDeleteEvent = (event: CustomEvent) => {
+            const cutId = event.detail?.cutId;
+            if (cutId === cable.cut_id) {
+                console.log('Custom delete event received for:', cutId);
+                handlePopupDelete(cable);
+            }
+        };
+
+        const handlePopupCloseEvent = () => {
+            console.log('Custom close event received');
+            handlePopupClose();
+        };
+
+        // Add event listeners
+        document.addEventListener('popupDeleteCable', handlePopupDeleteEvent as EventListener);
+        document.addEventListener('popupClose', handlePopupCloseEvent);
+
+        // Store cleanup function in marker for later removal
+        (marker as any)._customEventCleanup = () => {
+            document.removeEventListener('popupDeleteCable', handlePopupDeleteEvent as EventListener);
+            document.removeEventListener('popupClose', handlePopupCloseEvent);
+        };
 
         // Stop any ongoing animations before starting new one to prevent conflicts
         map.stop();
@@ -349,8 +573,7 @@ const DeletedCablesSidebar: React.FC<DeletedCablesSidebarProps> = ({
         // Force map to focus exactly on the marker coordinates with appropriate zoom
         const targetZoom = 10; // Fixed zoom level for consistent viewing
         console.log('Panning map to:', { position, targetZoom });
-        
-        // Set view with faster, smooth animation
+        // (map.setView already called above for admin click)
         map.setView(position, targetZoom, { 
             animate: true,
             duration: 0.5, // Much shorter animation for immediate response
@@ -385,27 +608,6 @@ const DeletedCablesSidebar: React.FC<DeletedCablesSidebarProps> = ({
         setTimeout(() => setSelectedCable(null), 300); // allow fade out
     };
 
-    const handleDeleteCable = async (cable: CableCut) => {
-        try {
-            const response = await fetch(
-                `http://localhost:8081/delete-single-cable-cuts/${cable.cut_id}`,
-                { method: 'DELETE' }
-            );
-            const result = await response.json();
-            if (result.success) {
-                fetchDeletedCables();
-                if (setLastUpdate) setLastUpdate(Date.now().toString());
-                setShowMapMarker(false);
-                setTimeout(() => setSelectedCable(null), 300);
-            } else {
-                alert('Failed to delete cable.');
-            }
-        } catch (error) {
-            console.error('Error deleting cable:', error);
-            alert('Error deleting cable.');
-        }
-    };
-
     useEffect(() => {
         fetchDeletedCables();
     }, [lastUpdate]);
@@ -423,6 +625,10 @@ const DeletedCablesSidebar: React.FC<DeletedCablesSidebarProps> = ({
         // Cleanup function
         return () => {
             if (currentMarkerRef.current && mapRef?.current) {
+                // Clean up custom event listeners
+                if ((currentMarkerRef.current as any)._customEventCleanup) {
+                    (currentMarkerRef.current as any)._customEventCleanup();
+                }
                 mapRef.current.removeLayer(currentMarkerRef.current);
                 currentMarkerRef.current = null;
             }
@@ -560,6 +766,60 @@ const DeletedCablesSidebar: React.FC<DeletedCablesSidebarProps> = ({
                     )}
                 </List>
             </Box>
+
+            {/* Enhanced Notification System */}
+            <Snackbar
+                open={notification.open}
+                autoHideDuration={6000}
+                onClose={hideNotification}
+                anchorOrigin={{ vertical: 'top', horizontal: 'center' }}
+            >
+                <Alert onClose={hideNotification} severity={notification.severity} sx={{ width: '100%' }}>
+                    {notification.message}
+                </Alert>
+            </Snackbar>
+
+            {/* Enhanced Delete Confirmation Dialog */}
+            <Dialog
+                open={deleteDialog.open}
+                onClose={closeDeleteDialog}
+                aria-labelledby="delete-dialog-title"
+                aria-describedby="delete-dialog-description"
+                maxWidth="sm"
+                fullWidth
+            >
+                <DialogTitle id="delete-dialog-title" sx={{ color: '#d32f2f', fontWeight: 'bold' }}>
+                    ⚠️ Confirm Cable Deletion
+                </DialogTitle>
+                <DialogContent>
+                    <DialogContentText id="delete-dialog-description">
+                        Are you sure you want to permanently delete cable{' '}
+                        <strong>{deleteDialog.cable?.cut_id}</strong>?
+                        <br />
+                        <br />
+                        This action cannot be undone and will remove all associated data.
+                    </DialogContentText>
+                </DialogContent>
+                <DialogActions sx={{ p: 2, gap: 1 }}>
+                    <Button 
+                        onClick={closeDeleteDialog} 
+                        variant="outlined" 
+                        color="primary"
+                        disabled={loading}
+                    >
+                        Cancel
+                    </Button>
+                    <Button 
+                        onClick={() => deleteDialog.cable && handleDeleteCable(deleteDialog.cable)} 
+                        variant="contained" 
+                        color="error"
+                        disabled={loading}
+                        sx={{ minWidth: 100 }}
+                    >
+                        {loading ? 'Deleting...' : 'Delete'}
+                    </Button>
+                </DialogActions>
+            </Dialog>
         </>
     );
 };

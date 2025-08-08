@@ -120,6 +120,93 @@ interface UserCableMapProps {
 }
 
 const UserCableMap = ({ selectedCable }: UserCableMapProps) => {
+  // Add custom CSS for smart popup positioning
+  useEffect(() => {
+    const style = document.createElement('style');
+    style.textContent = `
+      .smart-positioned-popup .leaflet-popup-content-wrapper {
+        background: white;
+        border-radius: 8px;
+        box-shadow: 0 6px 16px rgba(0,0,0,0.2);
+        border: 1px solid #ddd;
+        max-width: 320px !important;
+        min-width: 260px !important;
+        font-size: 14px;
+        line-height: 1.4;
+      }
+      
+      .smart-positioned-popup .leaflet-popup-content {
+        margin: 0;
+        padding: 0;
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      }
+      
+      .smart-positioned-popup .leaflet-popup-tip {
+        background: white;
+        border: 1px solid #ddd;
+        box-shadow: 0 2px 6px rgba(0,0,0,0.15);
+      }
+      
+      /* Ensure popup stays within viewport with higher z-index */
+      .smart-positioned-popup {
+        z-index: 1200 !important;
+      }
+      
+      .leaflet-popup {
+        margin-bottom: 20px;
+        pointer-events: auto !important;
+      }
+      
+      /* Better button styling within popups */
+      .smart-positioned-popup .leaflet-popup-content button {
+        font-family: inherit;
+        font-size: 13px;
+        padding: 8px 12px;
+        margin: 4px;
+        border-radius: 4px;
+        border: none;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        font-weight: 500;
+      }
+      
+      /* Responsive popup sizing */
+      @media (max-width: 768px) {
+        .smart-positioned-popup .leaflet-popup-content-wrapper {
+          max-width: 280px !important;
+          min-width: 240px !important;
+          font-size: 13px;
+        }
+        
+        .smart-positioned-popup .leaflet-popup-content button {
+          font-size: 12px;
+          padding: 6px 10px;
+        }
+      }
+      
+      @media (max-width: 480px) {
+        .smart-positioned-popup .leaflet-popup-content-wrapper {
+          max-width: 250px !important;
+          min-width: 220px !important;
+        }
+      }
+      
+      /* Ensure popup content is never cut off */
+      .cable-cut-popup {
+        box-sizing: border-box;
+        width: 100% !important;
+        max-width: 300px;
+      }
+    `;
+    document.head.appendChild(style);
+    
+    return () => {
+      if (document.head.contains(style)) {
+        document.head.removeChild(style);
+      }
+    };
+  }, []);
+
   // Pan/zoom to selected cable location if selectedCable changes
   const mapRef = useRef<any>(null);
   useEffect(() => {
@@ -266,7 +353,11 @@ const UserCableMap = ({ selectedCable }: UserCableMapProps) => {
   }, []);
 
   return (
-    <MapContainer style={{ height: mapHeight, width: '100%', position: 'relative' }} ref={mapRef}>
+    <MapContainer 
+      style={{ height: mapHeight, width: '100%', position: 'relative' }} 
+      ref={mapRef}
+      // Add padding to ensure popups are visible - this will be handled by CSS and JS
+    >
       <RemoveAttribution />
       <ChangeView center={[18, 134]} zoom={3.5} />
       <TileLayer
@@ -315,6 +406,7 @@ const UserCableMap = ({ selectedCable }: UserCableMapProps) => {
             isAdmin={false} // <-- Hide Delete button for users
             isUser={true}   // <-- Enable user functionality
             mapRef={mapRef} // <-- Pass mapRef for popup functionality
+            onCloseSidebar={() => setSidebarOpen(false)} // Add close function
           />
         </Box>
       )}

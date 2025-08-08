@@ -4,7 +4,7 @@ import InfoIcon from '@mui/icons-material/Info';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import { MapContainer, TileLayer, useMap, Marker, Popup } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
-import { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState, useCallback, useMemo } from 'react';
 import L from 'leaflet';
 import SeaUS from '../dashboard/SeaUS';
 import SJC from '../dashboard/SJC';
@@ -50,7 +50,13 @@ import RPLSeaUS6 from '../dashboard/RoutePositionList/RPLSeaUS6';
 
 function ChangeView({ center, zoom }) {
   const map = useMap();
-  map.setView(center, zoom);
+  
+  useEffect(() => {
+    if (center && zoom) {
+      map.setView(center, zoom);
+    }
+  }, [map, center, zoom]);
+  
   return null;
 }
 
@@ -60,16 +66,28 @@ type DynamicMarkerProps = {
   icon?: L.Icon;
 };
 
-function DynamicMarker({ position, label, icon }: DynamicMarkerProps) {
+const DynamicMarker = React.memo(({ position, label, icon }: DynamicMarkerProps) => {
   const map = useMap();
+  const markerRef = useRef<L.Marker | L.CircleMarker | null>(null);
 
   useEffect(() => {
-    if (position) {
+    if (!position || !Array.isArray(position) || position.length !== 2) return;
+
+    // Clean up existing marker
+    if (markerRef.current) {
+      map.removeLayer(markerRef.current);
+      markerRef.current = null;
+    }
+
+    // Create pane if it doesn't exist
+    if (!map.getPane('markerPane')) {
       map.createPane('markerPane');
       map.getPane('markerPane')!.style.zIndex = '650';
+    }
 
-      let marker: L.Marker | L.CircleMarker;
+    let marker: L.Marker | L.CircleMarker;
 
+    try {
       if (icon) {
         marker = L.marker(position, {
           icon,
@@ -85,44 +103,109 @@ function DynamicMarker({ position, label, icon }: DynamicMarkerProps) {
         });
       }
 
-      marker.bindTooltip(
-        `<span style="font-size: 14px; font-weight: bold;">${label}</span>`,
-        {
-          direction: 'top',
-          offset: icon ? [0, -30] : [0, -10],
-          permanent: false,
-          opacity: 1
-        }
-      );
+      if (label) {
+        marker.bindTooltip(
+          `<span style="font-size: 14px; font-weight: bold;">${label}</span>`,
+          {
+            direction: 'top',
+            offset: icon ? [0, -30] : [0, -10],
+            permanent: false,
+            opacity: 1
+          }
+        );
+      }
 
       marker.addTo(map);
-
-      return () => {
-        map.removeLayer(marker);
-      };
+      markerRef.current = marker;
+    } catch (error) {
+      console.error('Error creating dynamic marker:', error);
     }
+
+    return () => {
+      if (markerRef.current) {
+        try {
+          map.removeLayer(markerRef.current);
+        } catch (error) {
+          console.warn('Error removing marker:', error);
+        }
+        markerRef.current = null;
+      }
+    };
   }, [position, map, label, icon]);
 
   return null;
-}
+});
 
-const RemoveAttribution = () => {
+const RemoveAttribution = React.memo(() => {
   const map = useMap();
 
   useEffect(() => {
-    map.attributionControl.remove();
+    try {
+      if (map && map.attributionControl) {
+        map.attributionControl.remove();
+      }
+    } catch (error) {
+      console.warn('Error removing attribution control:', error);
+    }
   }, [map]);
 
   return null;
-};
+});
 
 interface CableMapProps {
   selectedCable?: any;
   selectedCutType?: string | null;
   mapRef?: React.RefObject<L.Map>;
+  onCloseCablePopup?: () => void;
+  setLastUpdate?: (val: string) => void;
 }
 
-const CableMap: React.FC<CableMapProps> = ({ selectedCable, selectedCutType, mapRef: externalMapRef }) => {
+// Error boundary wrapper component
+const CableMapErrorBoundary: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const [hasError, setHasError] = useState(false);
+
+  useEffect(() => {
+    const handleError = (error: ErrorEvent) => {
+      console.error('CableMap Error:', error);
+      setHasError(true);
+    };
+
+    window.addEventListener('error', handleError);
+    return () => window.removeEventListener('error', handleError);
+  }, []);
+
+  if (hasError) {
+    return (
+      <Box sx={{ p: 4, textAlign: 'center', bgcolor: '#f5f5f5', borderRadius: 2 }}>
+        <Typography variant="h6" color="error" gutterBottom>
+          Map Loading Error
+        </Typography>
+        <Typography variant="body2" color="textSecondary">
+          There was an error loading the cable map. Please refresh the page or contact support.
+        </Typography>
+        <button 
+          onClick={() => window.location.reload()} 
+          style={{ 
+            marginTop: '16px', 
+            padding: '8px 16px', 
+            backgroundColor: '#1976d2', 
+            color: 'white', 
+            border: 'none', 
+            borderRadius: '4px', 
+            cursor: 'pointer' 
+          }}
+        >
+          Refresh Page
+        </button>
+      </Box>
+    );
+  }
+
+  return <>{children}</>;
+};
+
+const CableMap: React.FC<CableMapProps> = ({ selectedCable, selectedCutType, mapRef: externalMapRef, onCloseCablePopup, setLastUpdate: externalSetLastUpdate }) => {
+  // State management with better initialization
   const [mapHeight, setMapHeight] = useState('600px');
   const [ipopUtilization, setIpopUtilization] = useState('0%');
   const [ipopDifference, setIpopDifference] = useState('0%');
@@ -132,267 +215,492 @@ const CableMap: React.FC<CableMapProps> = ({ selectedCable, selectedCutType, map
     avgUtilization: 0,
     zeroUtilizationCount: 0
   });
-  const apiBaseUrl = process.env.REACT_APP_API_BASE_URL;
-  const port = process.env.REACT_APP_PORT;
-  const mapApiKey = process.env.REACT_APP_GEOAPIFY_API_KEY;
-
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [rightSidebarOpen, setRightSidebarOpen] = useState(false);
   const [lastUpdate, setLastUpdate] = useState<string | null>(null);
+  
+  // Refs for cleanup
   const mapRef = useRef<any>(null);
+  const dataIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const ipopIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const mountedRef = useRef(true);
 
-  // Helper function to format date
-  const formatDate = (dateStr: string) => {
+  // Environment variables with fallbacks
+  const apiConfig = useMemo(() => ({
+    baseUrl: process.env.REACT_APP_API_BASE_URL || 'http://localhost',
+    port: process.env.REACT_APP_PORT || ':8081',
+    mapApiKey: process.env.REACT_APP_GEOAPIFY_API_KEY || ''
+  }), []);
+
+  // Optimized formatDate function with memoization
+  const formatDate = useCallback((dateStr: string) => {
     if (!dateStr) return '';
     const d = new Date(dateStr);
     if (isNaN(d.getTime())) return dateStr;
     return d.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
-  };
-
-  useEffect(() => {
-    const updateMapHeight = () => {
-      const screenWidth = window.innerWidth;
-      if (screenWidth > 1600) {
-        setMapHeight('800px');
-      } else if (screenWidth > 1200) {
-        setMapHeight('700px');
-      } else {
-        setMapHeight('600px');
-      }
-    };
-    updateMapHeight();
-    window.addEventListener('resize', updateMapHeight);
-    return () => window.removeEventListener('resize', updateMapHeight);
   }, []);
 
-  useEffect(() => {
-    let interval: NodeJS.Timeout;
-    const fetchData = async () => {
-      try {
-        const response = await fetch(`${apiBaseUrl}${port}/data-summary`);
-        const result = await response.json();
-        if (Array.isArray(result) && result.length > 0) {
-          const totalGbps = result.reduce((sum, item) => sum + (item.gbps || 0), 0);
-          const totalUtilization = result.reduce((sum, item) => sum + (item.percent || 0), 0);
-          const avgUtilization = parseFloat((totalUtilization / result.length).toFixed(2));
-          const zeroCount = result.filter((item) => item.percent === 0).length;
-          setStats({ data: result, totalGbps, avgUtilization, zeroUtilizationCount: zeroCount });
-          clearInterval(interval);
-        } else {
-          console.log('No data received, retrying...');
-        }
-      } catch (err) {
-        console.error('Error fetching data:', err);
-      }
-    };
-    fetchData();
-    interval = setInterval(fetchData, 2000);
-    return () => clearInterval(interval);
-  }, [apiBaseUrl, port]);
+  // Optimized delete cable function with better error handling
+  const handleDeleteCable = useCallback(async (cable: any) => {
+    if (!cable?.cut_id) {
+      alert('Invalid cable data');
+      return;
+    }
 
-  useEffect(() => {
-    let interval: NodeJS.Timeout;
-    const fetchIpopUtil = async () => {
-      try {
-        const response = await fetch(`${apiBaseUrl}${port}/average-util`, { headers: { 'Cache-Control': 'no-cache' } });
-        const data = await response.json();
-        if (data?.current?.length) {
-          const currentVal = parseFloat(data.current[0].a_side);
-          setIpopUtilization(`${currentVal}%`);
-          if (data?.previous?.length) {
-            const previousVal = parseFloat(data.previous[0].a_side);
-            const diff = currentVal - previousVal;
-            const sign = diff > 0 ? '+' : '';
-            setIpopDifference(`${sign}${diff.toFixed(2)}%`);
-          } else {
-            setIpopDifference('');
+    try {
+      console.log('Making delete request for cable:', cable.cut_id);
+      const response = await fetch(
+        `${apiConfig.baseUrl}${apiConfig.port}/delete-single-cable-cuts/${cable.cut_id}`,
+        { 
+          method: 'DELETE',
+          headers: {
+            'Content-Type': 'application/json'
           }
-          clearInterval(interval);
+        }
+      );
+      
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      
+      const result = await response.json();
+      console.log('Delete response:', result);
+      
+      if (result.success) {
+        // Update the lastUpdate to trigger refresh in sidebar if it exists
+        const updateFunction = externalSetLastUpdate || setLastUpdate;
+        if (updateFunction) {
+          updateFunction(Date.now().toString());
+        }
+        alert('Cable deleted successfully!');
+        // Close the popup by clearing selected cable
+        if (onCloseCablePopup) {
+          onCloseCablePopup();
+        }
+      } else {
+        alert('Failed to delete cable: ' + (result.message || 'Unknown error'));
+      }
+    } catch (error) {
+      console.error('Error deleting cable:', error);
+      alert('Error deleting cable: ' + (error instanceof Error ? error.message : 'Unknown error'));
+    }
+  }, [apiConfig, externalSetLastUpdate, setLastUpdate, onCloseCablePopup]);
+
+  // Optimized map height calculation
+  const updateMapHeight = useCallback(() => {
+    const screenWidth = window.innerWidth;
+    if (screenWidth > 1600) {
+      setMapHeight('800px');
+    } else if (screenWidth > 1200) {
+      setMapHeight('700px');
+    } else {
+      setMapHeight('600px');
+    }
+  }, []);
+
+  // Optimized data fetching with abort controller
+  const fetchDataSummary = useCallback(async (abortController?: AbortController) => {
+    try {
+      const response = await fetch(`${apiConfig.baseUrl}${apiConfig.port}/data-summary`, {
+        signal: abortController?.signal
+      });
+      
+      if (!response.ok) throw new Error('Failed to fetch data summary');
+      
+      const result = await response.json();
+      
+      if (!mountedRef.current) return;
+
+      if (Array.isArray(result) && result.length > 0) {
+        const totalGbps = result.reduce((sum, item) => sum + (item.gbps || 0), 0);
+        const totalUtilization = result.reduce((sum, item) => sum + (item.percent || 0), 0);
+        const avgUtilization = parseFloat((totalUtilization / result.length).toFixed(2));
+        const zeroCount = result.filter((item) => item.percent === 0).length;
+        
+        setStats({ data: result, totalGbps, avgUtilization, zeroUtilizationCount: zeroCount });
+        return true; // Success
+      } else {
+        console.log('No data received, will retry...');
+        return false; // No data
+      }
+    } catch (err) {
+      if (err.name === 'AbortError') return false;
+      console.error('Error fetching data:', err);
+      return false;
+    }
+  }, [apiConfig]);
+
+  // Optimized IPOP utilization fetching
+  const fetchIpopUtilization = useCallback(async (abortController?: AbortController) => {
+    try {
+      const response = await fetch(`${apiConfig.baseUrl}${apiConfig.port}/average-util`, { 
+        headers: { 'Cache-Control': 'no-cache' },
+        signal: abortController?.signal
+      });
+      
+      if (!response.ok) throw new Error('Failed to fetch IPOP utilization');
+      
+      const data = await response.json();
+      
+      if (!mountedRef.current) return;
+
+      if (data?.current?.length) {
+        const currentVal = parseFloat(data.current[0].a_side);
+        setIpopUtilization(`${currentVal}%`);
+        
+        if (data?.previous?.length) {
+          const previousVal = parseFloat(data.previous[0].a_side);
+          const diff = currentVal - previousVal;
+          const sign = diff > 0 ? '+' : '';
+          setIpopDifference(`${sign}${diff.toFixed(2)}%`);
         } else {
-          setIpopUtilization('0%');
           setIpopDifference('');
         }
-      } catch (error) {
-        console.error('Error fetching IPOP utilization:', error);
+        return true;
+      } else {
+        setIpopUtilization('0%');
+        setIpopDifference('');
+        return false;
+      }
+    } catch (error) {
+      if (error.name === 'AbortError') return false;
+      console.error('Error fetching IPOP utilization:', error);
+      return false;
+    }
+  }, [apiConfig]);
+
+  // Initialize map height on mount
+  useEffect(() => {
+    updateMapHeight();
+    window.addEventListener('resize', updateMapHeight);
+    return () => {
+      window.removeEventListener('resize', updateMapHeight);
+    };
+  }, [updateMapHeight]);
+
+  // Optimized data fetching effect with cleanup
+  useEffect(() => {
+    let retryCount = 0;
+    const maxRetries = 5;
+    
+    const startDataFetching = async () => {
+      const abortController = new AbortController();
+      
+      const fetchData = async () => {
+        const success = await fetchDataSummary(abortController);
+        if (success) {
+          retryCount = 0; // Reset retry count on success
+          if (dataIntervalRef.current) {
+            clearInterval(dataIntervalRef.current);
+            dataIntervalRef.current = null;
+          }
+        } else if (retryCount < maxRetries) {
+          retryCount++;
+          console.log(`Retrying data fetch (${retryCount}/${maxRetries})...`);
+        }
+      };
+
+      // Initial fetch
+      await fetchData();
+      
+      // Set up interval only if we haven't succeeded yet
+      if (retryCount > 0 && retryCount < maxRetries) {
+        dataIntervalRef.current = setInterval(fetchData, 3000); // Reduced frequency
+      }
+
+      return abortController;
+    };
+
+    const abortController = startDataFetching();
+    
+    return () => {
+      if (dataIntervalRef.current) {
+        clearInterval(dataIntervalRef.current);
+        dataIntervalRef.current = null;
+      }
+      abortController.then(controller => controller.abort());
+    };
+  }, [fetchDataSummary]);
+
+  // Optimized IPOP utilization fetching effect
+  useEffect(() => {
+    let retryCount = 0;
+    const maxRetries = 5;
+    
+    const startIpopFetching = async () => {
+      const abortController = new AbortController();
+      
+      const fetchIpop = async () => {
+        const success = await fetchIpopUtilization(abortController);
+        if (success) {
+          retryCount = 0;
+          if (ipopIntervalRef.current) {
+            clearInterval(ipopIntervalRef.current);
+            ipopIntervalRef.current = null;
+          }
+        } else if (retryCount < maxRetries) {
+          retryCount++;
+          console.log(`Retrying IPOP fetch (${retryCount}/${maxRetries})...`);
+        }
+      };
+
+      await fetchIpop();
+      
+      if (retryCount > 0 && retryCount < maxRetries) {
+        ipopIntervalRef.current = setInterval(fetchIpop, 3000);
+      }
+
+      return abortController;
+    };
+
+    const abortController = startIpopFetching();
+    
+    return () => {
+      if (ipopIntervalRef.current) {
+        clearInterval(ipopIntervalRef.current);
+        ipopIntervalRef.current = null;
+      }
+      abortController.then(controller => controller.abort());
+    };
+  }, [fetchIpopUtilization]);
+
+  // Component unmount cleanup
+  useEffect(() => {
+    return () => {
+      mountedRef.current = false;
+      if (dataIntervalRef.current) {
+        clearInterval(dataIntervalRef.current);
+      }
+      if (ipopIntervalRef.current) {
+        clearInterval(ipopIntervalRef.current);
       }
     };
-    fetchIpopUtil();
-    interval = setInterval(fetchIpopUtil, 2000);
-    return () => clearInterval(interval);
-  }, [apiBaseUrl, port]);
-
-  useEffect(() => {
-    // Remove this conflicting map panning logic - DeletedCablesSidebar handles its own positioning
-    // This useEffect was causing the map to get stuck because it conflicts with internal sidebar panning
-    // if (selectedCable && selectedCable.latitude && selectedCable.longitude) {
-    //   const map = externalMapRef?.current || mapRef.current;
-    //   if (map) {
-    //     map.setView([selectedCable.latitude, selectedCable.longitude], 10, { animate: true });
-    //   }
-    // }
-  }, [selectedCable, externalMapRef]);
+  }, []);
 
   return (
-    <Box sx={{ position: 'relative', width: '100%', height: mapHeight }}>
-      {/* Left sidebar toggle button */}
-      <IconButton
-        sx={{ position: 'absolute', top: 16, left: 16, zIndex: 1200, background: '#fff', boxShadow: 2 }}
-        onClick={() => setSidebarOpen((open) => !open)}
-        aria-label="Show Deleted Cables Sidebar"
-      >
-        <MenuIcon />
-      </IconButton>
-
-      {/* Right sidebar toggle button */}
-      <IconButton
-        sx={{ position: 'absolute', top: 16, right: 16, zIndex: 1200, background: '#fff', boxShadow: 2 }}
-        onClick={() => setRightSidebarOpen((open) => !open)}
-        aria-label="Show Info Sidebar"
-      >
-        <InfoIcon />
-      </IconButton>
-
-      {/* Left Sidebar - Deleted Cables */}
-      {sidebarOpen && (
-        <Paper
-          elevation={4}
-          sx={{
-            position: 'absolute',
-            top: 0,
-            left: 0,
-            height: '100%',
-            width: 360,
-            zIndex: 1100,
-            display: 'flex',
-            flexDirection: 'column',
-            boxShadow: 4,
-            borderRadius: '8px',
-            overflow: 'hidden',
-            background: 'rgba(255, 255, 255, 0.7)',
-          }}
+    <CableMapErrorBoundary>
+      <Box sx={{ position: 'relative', width: '100%', height: mapHeight }}>
+        {/* Left sidebar toggle button */}
+        <IconButton
+          sx={{ position: 'absolute', top: 16, left: 50, zIndex: 1200, background: '#fff', boxShadow: 2 }}
+          onClick={() => setSidebarOpen((open) => !open)}
+          aria-label="Show Deleted Cables Sidebar"
         >
-          <DeletedCablesSidebar
-            onSelectCable={(cable) => {
-              // Let DeletedCablesSidebar handle all map positioning internally
-              // Don't interfere with map panning to avoid conflicts
-              // console.log('Cable selected and positioned:', cable);
+          <MenuIcon />
+        </IconButton>
+
+        {/* Right sidebar toggle button */}
+        <IconButton
+          sx={{ position: 'absolute', top: 16, right: 16, zIndex: 1200, background: '#fff', boxShadow: 2 }}
+          onClick={() => setRightSidebarOpen((open) => !open)}
+          aria-label="Show Info Sidebar"
+        >
+          <InfoIcon />
+        </IconButton>
+
+        {/* Left Sidebar - Deleted Cables */}
+        {sidebarOpen && (
+          <Paper
+            elevation={4}
+            sx={{
+              position: 'absolute',
+              top: 0,
+              left: 0,
+              height: '100%',
+              width: 360,
+              zIndex: 1100,
+              display: 'flex',
+              flexDirection: 'column',
+              boxShadow: 4,
+              borderRadius: '8px',
+              overflow: 'hidden',
+              background: 'rgba(255, 255, 255, 0.7)',
             }}
-            lastUpdate={lastUpdate}
-            setLastUpdate={setLastUpdate}
-            isAdmin={true}  // Enable admin functionality
-            isUser={true}   // Enable user functionality 
-            mapRef={externalMapRef || mapRef}
-          />
-        </Paper>
-      )}
-
-      {/* Right Sidebar - HideToolTip */}
-      {rightSidebarOpen && (
-        <Paper
-          elevation={4}
-          sx={{
-            position: 'absolute',
-            top: 0,
-            right: 0,
-            height: '100%',
-            width: 360,
-            zIndex: 1100,
-            display: 'flex',
-            flexDirection: 'column',
-            boxShadow: 4,
-            borderRadius: '8px',
-            overflow: 'hidden',
-            background: 'rgba(255, 255, 255, 0.9)',
-          }}
-        >
-          <HideToolTip />
-        </Paper>
-      )}
-
-      <MapContainer style={{ height: '100%', width: '100%' }} ref={externalMapRef || mapRef}>
-        <RemoveAttribution />
-        <ChangeView center={[18, 134]} zoom={3.5} />
-        <TileLayer
-          url={`https://maps.geoapify.com/v1/tile/klokantech-basic/{z}/{x}/{y}.png?apiKey=${mapApiKey}`}
-        />
-
-
-
-
-        <DynamicMarker position={[1.3678, 125.0788]} label="Kauditan, Indonesia" />
-        <DynamicMarker position={[7.0439, 125.542]} label="Davao, Philippines" />
-        <DynamicMarker position={[13.464717, 144.69305]} label="Piti, Guam" />
-        <DynamicMarker position={[21.4671, 201.7798]} label="Makaha, Hawaii, USA" />
-        <USAMarker />
-        <DynamicMarker position={[14.0679, 120.6262]} label="Nasugbu, Philippines" />
-        <DynamicMarker position={[18.412883, 121.517283]} label="Ballesteros, Philippines" />
-        <JapanMarker />
-        <HongkongMarker />
-        <SingaporeMarker />
-
-        <RPLSeaUS1 />
-        <RPLSeaUS2 />
-        <RPLSeaUS3 />
-        <RPLSeaUS4 />
-        <RPLSeaUS5 />
-        <RPLSeaUS6 />
-        <RPLSJC1 />
-        <RPLSJC3 />
-        <RPLSJC4 />
-        <RPLSJC5 />
-        <RPLSJC6 />
-        <RPLSJC7 />
-        <RPLSJC8 />
-        <RPLSJC9 />
-        <RPLSJC10 />
-        <RPLSJC11 />
-        <RPLSJC12 />
-        <RPLSJC13 />
-        <RPLTGNIA1 />
-        <RPLTGNIA2 />
-        <RPLTGNIA3 />
-        <RPLTGNIA4 />
-        <RPLTGNIA5 />
-        <RPLTGNIA6 />
-        <RPLTGNIA7 />
-        <RPLTGNIA8 />
-        <RPLTGNIA9 />
-        <RPLTGNIA10 />
-        <RPLTGNIA11 />
-        <RPLTGNIA12 />
-        <C2C />
-        <SimulationButton />
-
-        {selectedCable && selectedCutType && (
-          <Marker
-            key={selectedCable.cut_id || `${selectedCable.latitude}-${selectedCable.longitude}`}
-            position={[selectedCable.latitude, selectedCable.longitude]}
           >
-            <Popup key={selectedCable.cut_id || `${selectedCable.latitude}-${selectedCable.longitude}`}>
-              <Box sx={{ minWidth: 270, p: 1 }}>
-                <Box sx={{ background: '#B71C1C', color: 'white', p: 1, borderRadius: 1, mb: 1, textAlign: 'center' }}>
-                  <Typography variant="h6">{selectedCutType.toUpperCase()}</Typography>
-                </Box>
-                <Typography sx={{ fontWeight: 700, fontSize: '18px', mb: 1 }}>
-                  {selectedCable.distance} km — {selectedCable.cut_id}
-                </Typography>
-                <Typography sx={{ mb: 1 }}>
-                  {formatDate(selectedCable.fault_date)} — Depth: {selectedCable.depth}m
-                </Typography>
-                <Typography sx={{ mb: 1 }}>Cut Type: {selectedCutType}</Typography>
-                <Typography sx={{ mb: 1 }}>Cable Type: {selectedCable.cable_type || 'Unknown'}</Typography>
-                <Typography sx={{ mb: 1 }}>Latitude: {selectedCable.latitude}</Typography>
-                <Typography sx={{ mb: 1 }}>Longitude: {selectedCable.longitude}</Typography>
-                <Box sx={{ mt: 2 }}>
-                  <button style={{ backgroundColor: '#dc3545', color: 'white', border: 'none', padding: '8px 12px', borderRadius: '4px', cursor: 'pointer', fontSize: '14px', fontWeight: 'bold', width: '100%' }}>Delete</button>
-                </Box>
-              </Box>
-            </Popup>
-          </Marker>
+            <DeletedCablesSidebar
+              onSelectCable={(cable) => {
+                // Let DeletedCablesSidebar handle all map positioning internally
+                // Don't interfere with map panning to avoid conflicts
+                // console.log('Cable selected and positioned:', cable);
+              }}
+              lastUpdate={lastUpdate}
+              setLastUpdate={setLastUpdate}
+              isAdmin={true}  // Enable admin functionality
+              isUser={true}   // Enable user functionality 
+              mapRef={externalMapRef || mapRef}
+              onCloseSidebar={() => setSidebarOpen(false)} // Add close function
+            />
+          </Paper>
         )}
-      </MapContainer>
-    </Box>
+
+        {/* Right Sidebar - HideToolTip */}
+        {rightSidebarOpen && (
+          <Paper
+            elevation={4}
+            sx={{
+              position: 'absolute',
+              top: 0,
+              right: 0,
+              height: '100%',
+              width: 360,
+              zIndex: 1100,
+              display: 'flex',
+              flexDirection: 'column',
+              boxShadow: 4,
+              borderRadius: '8px',
+              overflow: 'hidden',
+              background: 'rgba(255, 255, 255, 0.9)',
+            }}
+          >
+            <HideToolTip />
+          </Paper>
+        )}
+
+        <MapContainer style={{ height: '100%', width: '100%' }} ref={externalMapRef || mapRef}>
+          <RemoveAttribution />
+          <ChangeView center={[18, 134]} zoom={3.5} />
+          <TileLayer
+            url={`https://maps.geoapify.com/v1/tile/klokantech-basic/{z}/{x}/{y}.png?apiKey=${apiConfig.mapApiKey}`}
+          />
+
+          {/* Static markers - memoized to prevent recreation */}
+          <DynamicMarker position={[1.3678, 125.0788]} label="Kauditan, Indonesia" />
+          <DynamicMarker position={[7.0439, 125.542]} label="Davao, Philippines" />
+          <DynamicMarker position={[13.464717, 144.69305]} label="Piti, Guam" />
+          <DynamicMarker position={[21.4671, 201.7798]} label="Makaha, Hawaii, USA" />
+          <DynamicMarker position={[14.0679, 120.6262]} label="Nasugbu, Philippines" />
+          <DynamicMarker position={[18.412883, 121.517283]} label="Ballesteros, Philippines" />
+
+          {/* Country markers */}
+          <USAMarker />
+          <JapanMarker />
+          <HongkongMarker />
+          <SingaporeMarker />
+
+          {/* Route position lists */}
+          <RPLSeaUS1 />
+          <RPLSeaUS2 />
+          <RPLSeaUS3 />
+          <RPLSeaUS4 />
+          <RPLSeaUS5 />
+          <RPLSeaUS6 />
+          <RPLSJC1 />
+          <RPLSJC3 />
+          <RPLSJC4 />
+          <RPLSJC5 />
+          <RPLSJC6 />
+          <RPLSJC7 />
+          <RPLSJC8 />
+          <RPLSJC9 />
+          <RPLSJC10 />
+          <RPLSJC11 />
+          <RPLSJC12 />
+          <RPLSJC13 />
+          <RPLTGNIA1 />
+          <RPLTGNIA2 />
+          <RPLTGNIA3 />
+          <RPLTGNIA4 />
+          <RPLTGNIA5 />
+          <RPLTGNIA6 />
+          <RPLTGNIA7 />
+          <RPLTGNIA8 />
+          <RPLTGNIA9 />
+          <RPLTGNIA10 />
+          <RPLTGNIA11 />
+          <RPLTGNIA12 />
+          <C2C />
+          <SimulationButton />
+
+          {selectedCable && selectedCutType && (
+            <Marker
+              key={`cable-${selectedCable.cut_id || `${selectedCable.latitude}-${selectedCable.longitude}`}`}
+              position={[selectedCable.latitude, selectedCable.longitude]}
+            >
+              <Popup key={`popup-${selectedCable.cut_id || `${selectedCable.latitude}-${selectedCable.longitude}`}`}>
+                <Box sx={{ minWidth: 270, p: 1 }}>
+                  <Box sx={{ background: '#B71C1C', color: 'white', p: 1, borderRadius: 1, mb: 1, textAlign: 'center' }}>
+                    <Typography variant="h6">{selectedCutType.toUpperCase()}</Typography>
+                  </Box>
+                  <Typography sx={{ fontWeight: 700, fontSize: '18px', mb: 1 }}>
+                    {selectedCable.distance} km — {selectedCable.cut_id}
+                  </Typography>
+                  <Typography sx={{ mb: 1 }}>
+                    {formatDate(selectedCable.fault_date)} — Depth: {selectedCable.depth}m
+                  </Typography>
+                  <Typography sx={{ mb: 1 }}>Cut Type: {selectedCutType}</Typography>
+                  <Typography sx={{ mb: 1 }}>Cable Type: {selectedCable.cable_type || 'Unknown'}</Typography>
+                  <Typography sx={{ mb: 1 }}>Latitude: {selectedCable.latitude}</Typography>
+                  <Typography sx={{ mb: 1 }}>Longitude: {selectedCable.longitude}</Typography>
+                  <Box sx={{ mt: 2, display: 'flex', flexDirection: 'column', gap: 1 }}>
+                    <button 
+                      onClick={async (e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        console.log('Delete button clicked for cable:', selectedCable.cut_id);
+                        
+                        // Confirm deletion before proceeding
+                        if (window.confirm(`Are you sure you want to delete cable ${selectedCable.cut_id}?`)) {
+                          try {
+                            await handleDeleteCable(selectedCable);
+                          } catch (error) {
+                            console.error('Error in delete button click:', error);
+                          }
+                        }
+                      }}
+                      style={{ 
+                        backgroundColor: '#dc3545', 
+                        color: 'white', 
+                        border: 'none', 
+                        padding: '8px 12px', 
+                        borderRadius: '4px', 
+                        cursor: 'pointer', 
+                        fontSize: '14px', 
+                        fontWeight: 'bold', 
+                        width: '100%',
+                        transition: 'background-color 0.2s'
+                      }}
+                      onMouseOver={(e) => e.currentTarget.style.backgroundColor = '#c82333'}
+                      onMouseOut={(e) => e.currentTarget.style.backgroundColor = '#dc3545'}
+                    >
+                      Delete
+                    </button>
+                 <button 
+                      onClick={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        console.log('Close button clicked');
+                        
+                        // Close the popup using the callback function
+                        if (onCloseCablePopup) {
+                          onCloseCablePopup();
+                        }
+                      }}
+                      style={{ 
+                        backgroundColor: '#6c757d', 
+                        color: 'white', 
+                        border: 'none', 
+                        padding: '8px 12px', 
+                        borderRadius: '4px', 
+                        cursor: 'pointer', 
+                        fontSize: '14px', 
+                        fontWeight: 'bold', 
+                        width: '100%',
+                        transition: 'background-color 0.2s'
+                      }}
+                      onMouseOver={(e) => e.currentTarget.style.backgroundColor = '#5a6268'}
+                      onMouseOut={(e) => e.currentTarget.style.backgroundColor = '#6c757d'}
+                    >
+                      Close
+                    </button>
+                  </Box>
+                </Box>
+              </Popup>
+            </Marker>
+          )}
+        </MapContainer>
+      </Box>
+    </CableMapErrorBoundary>
   );
 };
 
