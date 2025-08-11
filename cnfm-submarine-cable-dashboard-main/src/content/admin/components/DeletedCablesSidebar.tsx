@@ -34,7 +34,6 @@ interface DeletedCablesSidebarProps {
     onSelectCable: (cable: CableCut) => void;
     lastUpdate?: string | null;
     setLastUpdate?: (val: string) => void;
-    phTime?: string;
     isAdmin?: boolean;
     isUser?: boolean;
     mapRef?: React.RefObject<L.Map>;
@@ -45,7 +44,6 @@ const DeletedCablesSidebar: React.FC<DeletedCablesSidebarProps> = ({
     onSelectCable,
     lastUpdate,
     setLastUpdate,
-    phTime,
     isAdmin = true,
     isUser = true,
     mapRef,
@@ -314,7 +312,7 @@ const DeletedCablesSidebar: React.FC<DeletedCablesSidebarProps> = ({
 
         const currentCenter = map.getCenter();
         const currentZoom = map.getZoom();
-        const targetZoom = 20; // Higher zoom for more detailed view of cable location
+        const targetZoom = 13; // Much closer initial zoom for excellent X marker visibility
         
         const distance = currentCenter.distanceTo(L.latLng(targetLat, targetLng));
         
@@ -831,11 +829,6 @@ const DeletedCablesSidebar: React.FC<DeletedCablesSidebarProps> = ({
                         <Typography variant="h6" sx={{ fontWeight: 700, color: '#3854A5' }}>
                             Deleted Cables
                         </Typography>
-                        {phTime && (
-                            <Typography variant="body2" sx={{ color: '#666' }}>
-                                PH Time: {phTime}
-                            </Typography>
-                        )}
                     </Box>
                     <Button
                         variant="contained"
