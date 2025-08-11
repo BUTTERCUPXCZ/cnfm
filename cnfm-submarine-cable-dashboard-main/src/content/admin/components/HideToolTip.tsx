@@ -14,14 +14,13 @@ import {
     Divider,
     CardContent,
     Tabs,
-    Tab
+    Tab,
+
 } from '@mui/material';
-import RefreshIcon from '@mui/icons-material/Refresh';
-import TrendingUpIcon from '@mui/icons-material/TrendingUp';
-import TrendingDownIcon from '@mui/icons-material/TrendingDown';
+import InfoIcon from "@mui/icons-material/Info";
 import SignalCellularAltIcon from '@mui/icons-material/SignalCellularAlt';
 
-// Import the individual chart components
+// Import chart components
 import TGNSingapore from '../charts/TGNIA/TGNSingapore';
 import TGNHongkong from '../charts/TGNIA/TGNHongkong';
 import TGNJapan from '../charts/TGNIA/TGNJapan';
@@ -34,37 +33,140 @@ import C2CSingapore from '../charts/C2C/C2CSingapore';
 import C2CHongkong from '../charts/C2C/C2CHongkong';
 import C2CJapan from '../charts/C2C/C2CJapan';
 
+// Constants
+const COLORS = {
+    primary: '#3854A5',
+    success: '#4caf50',
+    error: '#f44336',
+    warning: '#ff9800',
+    background: 'rgba(255, 255, 255, 0.3)',
+    text: {
+        primary: '#000000',
+        secondary: '#000000',
+        muted: '#000000'
+    }
+};
+
+const CABLE_SYSTEMS_CONFIG = [
+    {
+        name: 'TGN-IA',
+        color: '#722ED1',
+        segments: [
+            { name: 'Hong Kong', endpoint: '/tgnia-hongkong' },
+            { name: 'Japan', endpoint: '/tgnia-japan' },
+            { name: 'Singapore', endpoint: '/tgnia-singapore' }
+        ]
+    },
+    {
+        name: 'SJC',
+        color: '#1976D2',
+        segments: [
+            { name: 'Hong Kong', endpoint: '/sjc-hongkong' },
+            { name: 'Japan', endpoint: '/sjc-japan' },
+            { name: 'Singapore', endpoint: '/sjc-singapore' }
+        ]
+    },
+    {
+        name: 'SEA-US',
+        color: '#2E7D32',
+        segments: [
+            { name: 'Seattle', endpoint: '/sea-us-seattle' },
+            { name: 'Los Angeles', endpoint: '/sea-us-la' }
+        ]
+    },
+    {
+        name: 'C2C',
+        color: '#F57C00',
+        segments: [
+            { name: 'Hong Kong', endpoint: '/c2c-hongkong' },
+            { name: 'Japan', endpoint: '/c2c-japan' },
+            { name: 'Singapore', endpoint: '/c2c-singapore' }
+        ]
+    }
+];
+
+// Scrollbar styles
+const scrollBarStyles = {
+  scrollbarWidth: 'thin', // Firefox
+  scrollbarColor: 'rgba(56, 84, 165, 0.6) transparent',
+  '&::-webkit-scrollbar': {
+    width: '6px',
+  },
+  '&::-webkit-scrollbar-thumb': {
+    background:
+      'linear-gradient(180deg, rgba(56, 84, 165, 0.6) 0%, rgba(56, 84, 165, 0.8) 50%, rgba(56, 84, 165, 0.6) 100%)',
+    borderRadius: '6px',
+    transition: 'all 0.3s ease',
+  },
+  '&::-webkit-scrollbar-thumb:hover': {
+    background:
+      'linear-gradient(180deg, rgba(56, 84, 165, 0.8) 0%, rgba(56, 84, 165, 1) 50%, rgba(56, 84, 165, 0.8) 100%)',
+  },
+  '&::-webkit-scrollbar-track': {
+    background: 'rgba(56, 84, 165, 0.08)',
+    borderRadius: '6px',
+  },
+};
+
+// Styles
+const styles = {
+    container: {
+        background: COLORS.background,
+        p: 3,
+        width: '100%',
+        height: '100%',
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        justifyContent: 'flex-start',
+        overflow: 'hidden'
+    },
+    headerContainer: {
+        display: 'flex', 
+        alignItems: 'center', 
+        justifyContent: 'space-between', 
+        width: '100%', 
+        maxWidth: 280, 
+        mb: 3, 
+        mt: 2
+    },
+    refreshButton: {
+        color: COLORS.primary,
+        '&:disabled': { color: '#ccc' }
+    },
+    capacityCard: {
+        background: 'linear-gradient(135deg, #e3f2fd 0%, #bbdefb 100%)',
+        p: 2,
+        boxShadow: 2,
+        mb: 3,
+        width: '100%',
+        maxWidth: 280,
+        border: `1px solid rgba(56, 84, 165, 0.2)`
+    },
+    systemCard: (color: string) => ({
+        background: 'white',
+        p: 2,
+        borderRadius: 2,
+        boxShadow: 2,
+        mb: 2,
+        width: '100%',
+        maxWidth: 280,
+        border: `2px solid ${color}`,
+        cursor: 'pointer',
+        transition: 'all 0.2s ease-in-out',
+        '&:hover': {
+            boxShadow: 4,
+            transform: 'translateY(-2px)',
+            background: '#f8f9fa'
+        }
+    })
+};
+
+// Types
 interface TabPanelProps {
     children?: React.ReactNode;
     index: number;
     value: number;
-}
-
-function TabPanel(props: TabPanelProps) {
-    const { children, value, index, ...other } = props;
-
-    return (
-        <div
-            role="tabpanel"
-            hidden={value !== index}
-            id={`simple-tabpanel-${index}`}
-            aria-labelledby={`simple-tab-${index}`}
-            {...other}
-        >
-            {value === index && (
-                <Box sx={{ p: 2 }}>
-                    <Typography>{children}</Typography>
-                </Box>
-            )}
-        </div>
-    );
-}
-
-function a11yProps(index: number) {
-    return {
-        id: `simple-tab-${index}`,
-        'aria-controls': `simple-tabpanel-${index}`
-    };
 }
 
 interface CableSystemData {
@@ -84,7 +186,267 @@ interface CableSystemData {
     lastUpdate: Date;
 }
 
-const HideToolTip = () => {
+// Utility Components
+const TabPanel: React.FC<TabPanelProps> = ({ children, value, index, ...other }) => (
+    <div
+        role="tabpanel"
+        hidden={value !== index}
+        id={`simple-tabpanel-${index}`}
+        aria-labelledby={`simple-tab-${index}`}
+        {...other}
+    >
+        {value === index && (
+            <Box sx={{ p: 2 }}>
+                <Typography>{children}</Typography>
+            </Box>
+        )}
+    </div>
+);
+
+const a11yProps = (index: number) => ({
+    id: `simple-tab-${index}`,
+    'aria-controls': `simple-tabpanel-${index}`
+});
+
+// Chart Component Mapper
+const renderChartComponent = (systemName: string, segmentIndex: number) => {
+    const chartMap: Record<string, React.ComponentType[]> = {
+        'TGN-IA': [TGNSingapore, TGNHongkong, TGNJapan],
+        'SJC': [SJCSingapore, SJCHongkong, SJCJapan],
+        'SEA-US': [Seattle, LosAngeles],
+        'C2C': [C2CSingapore, C2CHongkong, C2CJapan]
+    };
+
+    const ChartComponent = chartMap[systemName]?.[segmentIndex];
+    return ChartComponent ? <ChartComponent /> : <div>No data available</div>;
+};
+
+// Sub Components
+const CapacityCard: React.FC<{
+    totalGbps: number;
+    utilization: string;
+    difference: string;
+}> = ({ totalGbps, utilization, difference }) => (
+    <Paper sx={styles.capacityCard}>
+        <Box sx={{ mb: 2 }}>
+            <Typography 
+                variant="body2" 
+                sx={{ 
+                    color: COLORS.text.secondary, 
+                    fontSize: '12px', 
+                    textTransform: 'uppercase', 
+                    letterSpacing: 1,
+                    mb: 1
+                }}
+            >
+                CAPACITY:
+            </Typography>
+            <Typography variant="h4" sx={{ fontWeight: 700, color: COLORS.primary, mb: 2 }}>
+                {totalGbps} Gbps
+            </Typography>
+        </Box>
+        
+        <Box>
+            <Typography 
+                variant="body2" 
+                sx={{ 
+                    color: COLORS.text.secondary, 
+                    fontSize: '12px', 
+                    textTransform: 'uppercase', 
+                    letterSpacing: 1,
+                    mb: 1
+                }}
+            >
+                AVERAGE UTILIZATION:
+            </Typography>
+            <Typography variant="h5" sx={{ fontWeight: 600, color: COLORS.primary }}>
+                {utilization}
+            </Typography>
+        </Box>
+    </Paper>
+);
+
+const SystemCard: React.FC<{
+    system: CableSystemData;
+    onClick: (system: CableSystemData) => void;
+}> = ({ system, onClick }) => (
+    <Paper onClick={() => onClick(system)} sx={styles.systemCard(system.color)}>
+        {/* System Header */}
+        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+            <Typography variant="h6" sx={{ fontWeight: 700, color: system.color }}>
+                {system.name}
+            </Typography>
+            <Chip
+                label={`${system.activeSegments}/${system.segments.length} active`}
+                size="medium"
+                sx={{
+                    fontSize: '12px',
+                    height: '20px',
+                    backgroundColor: system.activeSegments > 0 ? '#e8f5e8' : '#ffebee',
+                    color: system.activeSegments > 0 ? COLORS.success : COLORS.error
+                }}
+                icon={<SignalCellularAltIcon style={{ fontSize: '14px' }} />}
+            />
+        </Box>
+
+        {/* System Statistics */}
+        <Box sx={{ mb: 2 }}>
+            <StatRow 
+                label="Total Capacity:" 
+                value={`${system.totalCapacity.toLocaleString()} Gbps`}
+                color={system.color}
+                labelColor="#000000"
+            />
+            <StatRow 
+                label="Average Utilization:" 
+                value={`${system.avgUtilization}%`}
+                color={system.color}
+                labelColor="#000000"
+            />
+            <StatRow 
+                label="Links Not Working:" 
+                value={system.zeroUtilizationCount.toString()}
+                color={system.zeroUtilizationCount > 0 ? COLORS.error : COLORS.success}
+                labelColor="#000000"
+            />
+        </Box>
+
+        {/* Segments */}
+        <Box sx={{ mt: 2 }}>
+            <Typography 
+                variant="body2" 
+                sx={{ 
+                    color: COLORS.text.primary, 
+                    fontSize: '11px', 
+                    textTransform: 'uppercase',
+                    fontWeight: 600,
+                    letterSpacing: '1px',
+                    mb: 1,
+                    pb: 0.5,
+                    borderBottom: `1px solid ${system.color}30`
+                }}
+            >
+                Network Segments
+            </Typography>
+            {system.segments.map((segment, index) => (
+                <SegmentRow 
+                    key={index} 
+                    segment={segment} 
+                    systemColor={system.color} 
+                />
+            ))}
+        </Box>
+    </Paper>
+);
+
+const StatRow: React.FC<{
+    label: string;
+    value: string;
+    color: string;
+    labelColor?: string;
+}> = ({ label, value, color, labelColor }) => (
+    <Box sx={{ 
+        display: 'flex', 
+        justifyContent: 'space-between', 
+        alignItems: 'center', 
+        mb: 1.5,
+        py: 0.5,
+        px: 1,
+        borderRadius: 1,
+        backgroundColor: 'rgba(0, 0, 0, 0.02)',
+        '&:hover': {
+            backgroundColor: 'rgba(0, 0, 0, 0.05)'
+        }
+    }}>
+        <Typography 
+            variant="body2" 
+            sx={{ 
+                color: labelColor || COLORS.text.primary, 
+                fontSize: '12px',
+                fontWeight: 600,
+                letterSpacing: '0.5px'
+            }}
+        >
+            {label}
+        </Typography>
+        <Typography 
+            variant="body2" 
+            sx={{ 
+                fontWeight: 700, 
+                color,
+                fontSize: '12px',
+                textAlign: 'right'
+            }}
+        >
+            {value}
+        </Typography>
+    </Box>
+);
+
+const SegmentRow: React.FC<{
+    segment: { name: string; capacity: number; utilization: number; endpoint: string };
+    systemColor: string;
+}> = ({ segment, systemColor }) => (
+    <Box sx={{
+        display: 'flex',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        mt: 1,
+        p: 1,
+        borderRadius: 2,
+        backgroundColor: segment.utilization > 0 ? `${systemColor}15` : 'rgba(0,0,0,0.03)',
+        border: `1px solid ${segment.utilization > 0 ? `${systemColor}30` : 'rgba(0,0,0,0.1)'}`,
+        transition: 'all 0.2s ease',
+        '&:hover': {
+            backgroundColor: segment.utilization > 0 ? `${systemColor}20` : 'rgba(0,0,0,0.08)',
+            transform: 'translateX(2px)'
+        }
+    }}>
+        <Typography 
+            variant="body2" 
+            sx={{ 
+                fontSize: '11px', 
+                color: COLORS.text.primary,
+                fontWeight: 600,
+                letterSpacing: '0.3px'
+            }}
+        >
+            {segment.name}
+        </Typography>
+        <Box sx={{ display: 'flex', gap: 1.5, alignItems: 'center' }}>
+            <Typography 
+                variant="caption" 
+                sx={{ 
+                    fontSize: '10px', 
+                    color: COLORS.text.muted,
+                    fontWeight: 500,
+                    minWidth: '35px',
+                    textAlign: 'right'
+                }}
+            >
+                {segment.capacity.toLocaleString()}G
+            </Typography>
+            <Chip
+                label={`${segment.utilization}%`}
+                size="small"
+                sx={{
+                    fontSize: '9px',
+                    height: '18px',
+                    minWidth: '40px',
+                    fontWeight: 600,
+                    backgroundColor: segment.utilization > 0 ? systemColor : '#e0e0e0',
+                    color: segment.utilization > 0 ? 'white' : '#757575',
+                    '& .MuiChip-label': {
+                        px: 1
+                    }
+                }}
+            />
+        </Box>
+    </Box>
+);
+
+// Main Component
+const HideToolTip: React.FC = () => {
     const [ipopUtilization, setIpopUtilization] = useState('0%');
     const [ipopDifference, setIpopDifference] = useState('0%');
     const [lastRefresh, setLastRefresh] = useState<Date>(new Date());
@@ -95,118 +457,82 @@ const HideToolTip = () => {
         avgUtilization: 0,
         zeroUtilizationCount: 0
     });
-
-    // Modal state management
+    
+    // Modal state
     const [open, setOpen] = useState(false);
     const [selectedSystem, setSelectedSystem] = useState<CableSystemData | null>(null);
     const [tabValue, setTabValue] = useState(0);
+    const [isTooltipHovered, setIsTooltipHovered] = useState(false);
 
-    // Four main cable systems matching the map tooltips
-    const [cableSystemsData, setCableSystemsData] = useState<CableSystemData[]>([
-        {
-            name: 'TGN-IA',
-            color: '#B8860B', // Gold
+    // Initialize cable systems data
+    const [cableSystemsData, setCableSystemsData] = useState<CableSystemData[]>(
+        CABLE_SYSTEMS_CONFIG.map(config => ({
+            ...config,
             totalCapacity: 0,
             totalUtilization: 0,
             avgUtilization: 0,
             activeSegments: 0,
             zeroUtilizationCount: 0,
-            segments: [
-                { name: 'Hong Kong', capacity: 0, utilization: 0, endpoint: '/tgnia-hongkong' },
-                { name: 'Japan', capacity: 0, utilization: 0, endpoint: '/tgnia-japan' },
-                { name: 'Singapore', capacity: 0, utilization: 0, endpoint: '/tgnia-singapore' }
-            ],
+            segments: config.segments.map(seg => ({
+                ...seg,
+                capacity: 0,
+                utilization: 0
+            })),
             lastUpdate: new Date()
-        },
-        {
-            name: 'SJC',
-            color: '#1976D2', // Blue
-            totalCapacity: 0,
-            totalUtilization: 0,
-            avgUtilization: 0,
-            activeSegments: 0,
-            zeroUtilizationCount: 0,
-            segments: [
-                { name: 'Hong Kong', capacity: 0, utilization: 0, endpoint: '/sjc-hongkong' },
-                { name: 'Japan', capacity: 0, utilization: 0, endpoint: '/sjc-japan' },
-                { name: 'Singapore', capacity: 0, utilization: 0, endpoint: '/sjc-singapore' }
-            ],
-            lastUpdate: new Date()
-        },
-        {
-            name: 'SEA-US',
-            color: '#2E7D32', // Green
-            totalCapacity: 0,
-            totalUtilization: 0,
-            avgUtilization: 0,
-            activeSegments: 0,
-            zeroUtilizationCount: 0,
-            segments: [
-                { name: 'Seattle', capacity: 0, utilization: 0, endpoint: '/sea-us-seattle' },
-                { name: 'Los Angeles', capacity: 0, utilization: 0, endpoint: '/sea-us-la' }
-            ],
-            lastUpdate: new Date()
-        },
-        {
-            name: 'C2C',
-            color: '#F57C00', // Orange
-            totalCapacity: 0,
-            totalUtilization: 0,
-            avgUtilization: 0,
-            activeSegments: 0,
-            zeroUtilizationCount: 0,
-            segments: [
-                { name: 'Hong Kong', capacity: 0, utilization: 0, endpoint: '/c2c-hongkong' },
-                { name: 'Japan', capacity: 0, utilization: 0, endpoint: '/c2c-japan' },
-                { name: 'Singapore', capacity: 0, utilization: 0, endpoint: '/c2c-singapore' }
-            ],
-            lastUpdate: new Date()
-        }
-    ]);
+        }))
+    );
 
     const apiBaseUrl = process.env.REACT_APP_API_BASE_URL || 'http://localhost';
     const port = process.env.REACT_APP_PORT || ':8081';
 
-    // Debug: Log API configuration
+    // API and Data Management
     console.log('HideToolTip API Config:', { apiBaseUrl, port, fullUrl: `${apiBaseUrl}${port}` });
 
-    // Fetch individual cable system data
+    const fetchSegmentData = async (endpoint: string, systemName: string, segmentName: string) => {
+        try {
+            const url = `${apiBaseUrl}${port}${endpoint}`;
+            console.log(`Fetching ${systemName} ${segmentName} from:`, url);
+            const response = await fetch(url);
+            const result = await response.json();
+            console.log(`${systemName} ${segmentName} response:`, result);
+
+            if (Array.isArray(result) && result.length > 0) {
+                const totalCapacity = result.reduce((sum, item) => 
+                    sum + (item.gbps_capacity || item.gbps || 0), 0);
+                const totalUtilization = result.reduce((sum, item) => 
+                    sum + (item.percent_utilization || item.percent || 0), 0);
+                const avgUtilization = parseFloat((totalUtilization / result.length).toFixed(2));
+
+                return {
+                    capacity: totalCapacity,
+                    utilization: avgUtilization,
+                    rawData: result
+                };
+            }
+        } catch (error) {
+            console.error(`Error fetching ${systemName} ${segmentName}:`, error);
+        }
+        return { capacity: 0, utilization: 0, rawData: [] };
+    };
+
     const fetchCableSystemData = async (system: CableSystemData) => {
         const updatedSegments = await Promise.all(
             system.segments.map(async (segment) => {
-                try {
-                    const url = `${apiBaseUrl}${port}${segment.endpoint}`;
-                    console.log(`Fetching ${system.name} ${segment.name} from:`, url);
-                    const response = await fetch(url);
-                    const result = await response.json();
-                    console.log(`${system.name} ${segment.name} response:`, result);
-
-                    if (Array.isArray(result) && result.length > 0) {
-                        const totalCapacity = result.reduce((sum, item) => sum + (item.gbps_capacity || item.gbps || 0), 0);
-                        const totalUtilization = result.reduce((sum, item) => sum + (item.percent_utilization || item.percent || 0), 0);
-                        const avgUtilization = parseFloat((totalUtilization / result.length).toFixed(2));
-
-                        return {
-                            ...segment,
-                            capacity: totalCapacity,
-                            utilization: avgUtilization,
-                            rawData: result // Store raw data for zero utilization counting
-                        };
-                    }
-                } catch (error) {
-                    console.error(`Error fetching ${system.name} ${segment.name}:`, error);
-                }
-                return { ...segment, rawData: [] };
+                const segmentData = await fetchSegmentData(segment.endpoint, system.name, segment.name);
+                return {
+                    ...segment,
+                    ...segmentData
+                };
             })
         );
 
         // Calculate system totals
         const totalCapacity = updatedSegments.reduce((sum, seg) => sum + seg.capacity, 0);
         const totalUtilization = updatedSegments.reduce((sum, seg) => sum + seg.utilization, 0);
-        const avgUtilization = updatedSegments.length > 0 ? parseFloat((totalUtilization / updatedSegments.length).toFixed(2)) : 0;
+        const avgUtilization = updatedSegments.length > 0 
+            ? parseFloat((totalUtilization / updatedSegments.length).toFixed(2)) 
+            : 0;
         const activeSegments = updatedSegments.filter(seg => seg.utilization > 0).length;
-
-        // Calculate zero utilization count from all raw data
         const allRawData = updatedSegments.flatMap(seg => seg.rawData || []);
         const zeroUtilizationCount = allRawData.filter(item =>
             (item.percent_utilization || item.percent || 0) === 0
@@ -219,7 +545,7 @@ const HideToolTip = () => {
                 capacity: seg.capacity,
                 utilization: seg.utilization,
                 endpoint: seg.endpoint
-            })), // Remove rawData from segments
+            })),
             totalCapacity,
             totalUtilization,
             avgUtilization,
@@ -229,114 +555,111 @@ const HideToolTip = () => {
         };
     };
 
-    // Fetch all cable systems data
-    useEffect(() => {
-        const fetchAllCableSystems = async () => {
-            console.log('Fetching all cable systems data...');
-            const updatedSystems = await Promise.all(
-                cableSystemsData.map(system => fetchCableSystemData(system))
-            );
-            setCableSystemsData(updatedSystems);
-            console.log('All cable systems updated:', updatedSystems);
-        };
+    const fetchAllCableSystems = async () => {
+        console.log('Fetching all cable systems data...');
+        const updatedSystems = await Promise.all(
+            cableSystemsData.map(system => fetchCableSystemData(system))
+        );
+        setCableSystemsData(updatedSystems);
+        console.log('All cable systems updated:', updatedSystems);
+    };
 
-        fetchAllCableSystems();
-        const interval = setInterval(fetchAllCableSystems, 10000); // Update every 10 seconds
-        return () => clearInterval(interval);
-    }, [apiBaseUrl, port]);
-
-    // Fetch capacity data - EXACT COPY from CableMap
-    useEffect(() => {
-        let interval: NodeJS.Timeout;
-        const fetchData = async () => {
-            try {
-                const url = `${apiBaseUrl}${port}/data-summary`;
-                console.log('Fetching from:', url);
-                const response = await fetch(url);
-                const result = await response.json();
-                console.log('Data summary response:', result);
-
-                if (Array.isArray(result) && result.length > 0) {
-                    const totalGbps = result.reduce((sum, item) => sum + (item.gbps || 0), 0);
-                    const totalUtilization = result.reduce((sum, item) => sum + (item.percent || 0), 0);
-                    const avgUtilization = parseFloat((totalUtilization / result.length).toFixed(2));
-                    const zeroCount = result.filter((item) => item.percent === 0).length;
-                    setStats({ data: result, totalGbps, avgUtilization, zeroUtilizationCount: zeroCount });
-                    console.log('Stats updated:', { totalGbps, avgUtilization, zeroCount });
-                    clearInterval(interval);
-                } else {
-                    console.log('No data received, retrying...');
-                }
-            } catch (err) {
-                console.error('Error fetching data:', err);
-            }
-        };
-        fetchData();
-        interval = setInterval(fetchData, 2000);
-        return () => clearInterval(interval);
-    }, [apiBaseUrl, port]);
-
-    // Fetch utilization data - EXACT COPY from CableMap
-    useEffect(() => {
-        let interval: NodeJS.Timeout;
-        const fetchIpopUtil = async () => {
-            try {
-                const url = `${apiBaseUrl}${port}/average-util`;
-                console.log('Fetching utilization from:', url);
-                const response = await fetch(url, { headers: { 'Cache-Control': 'no-cache' } });
-                const data = await response.json();
-                console.log('Utilization response:', data);
-
-                if (data?.current?.length) {
-                    const currentVal = parseFloat(data.current[0].a_side);
-                    setIpopUtilization(`${currentVal}%`);
-                    if (data?.previous?.length) {
-                        const previousVal = parseFloat(data.previous[0].a_side);
-                        const diff = currentVal - previousVal;
-                        const sign = diff > 0 ? '+' : '';
-                        setIpopDifference(`${sign}${diff.toFixed(2)}%`);
-                    } else {
-                        setIpopDifference('');
-                    }
-                    console.log('Utilization updated:', currentVal);
-                    clearInterval(interval);
-                } else {
-                    setIpopUtilization('0%');
-                    setIpopDifference('');
-                }
-            } catch (error) {
-                console.error('Error fetching IPOP utilization:', error);
-            }
-        };
-        fetchIpopUtil();
-        interval = setInterval(fetchIpopUtil, 2000);
-        return () => clearInterval(interval);
-    }, [apiBaseUrl, port]);
-
-    // Manual refresh function
-    const handleRefresh = async () => {
-        setIsLoading(true);
-        setLastRefresh(new Date());
-
+    const fetchDataSummary = async () => {
         try {
-            // Fetch all cable systems data
-            const updatedSystems = await Promise.all(
-                cableSystemsData.map(system => fetchCableSystemData(system))
-            );
-            setCableSystemsData(updatedSystems);
-
-            // Also refresh overall stats
             const url = `${apiBaseUrl}${port}/data-summary`;
+            console.log('Fetching from:', url);
             const response = await fetch(url);
             const result = await response.json();
+            console.log('Data summary response:', result);
 
             if (Array.isArray(result) && result.length > 0) {
                 const totalGbps = result.reduce((sum, item) => sum + (item.gbps || 0), 0);
                 const totalUtilization = result.reduce((sum, item) => sum + (item.percent || 0), 0);
                 const avgUtilization = parseFloat((totalUtilization / result.length).toFixed(2));
                 const zeroCount = result.filter((item) => item.percent === 0).length;
-                setStats({ data: result, totalGbps, avgUtilization, zeroUtilizationCount: zeroCount });
+                setStats({ 
+                    data: result, 
+                    totalGbps, 
+                    avgUtilization, 
+                    zeroUtilizationCount: zeroCount 
+                });
+                console.log('Stats updated:', { totalGbps, avgUtilization, zeroCount });
+            } else {
+                console.log('No data received, retrying...');
             }
+        } catch (err) {
+            console.error('Error fetching data:', err);
+        }
+    };
+
+    const fetchIpopUtilization = async () => {
+        try {
+            const url = `${apiBaseUrl}${port}/average-util`;
+            console.log('Fetching utilization from:', url);
+            const response = await fetch(url, { headers: { 'Cache-Control': 'no-cache' } });
+            const data = await response.json();
+            console.log('Utilization response:', data);
+
+            if (data?.current?.length) {
+                const currentVal = parseFloat(data.current[0].a_side);
+                setIpopUtilization(`${currentVal}%`);
+                
+                if (data?.previous?.length) {
+                    const previousVal = parseFloat(data.previous[0].a_side);
+                    const diff = currentVal - previousVal;
+                    const sign = diff > 0 ? '+' : '';
+                    setIpopDifference(`${sign}${diff.toFixed(2)}%`);
+                } else {
+                    setIpopDifference('');
+                }
+                
+                console.log('Utilization updated:', currentVal);
+            } else {
+                setIpopUtilization('0%');
+                setIpopDifference('');
+            }
+        } catch (error) {
+            console.error('Error fetching IPOP utilization:', error);
+        }
+    };
+
+    // Effect Hooks
+    useEffect(() => {
+        fetchAllCableSystems();
+        const interval = setInterval(fetchAllCableSystems, 10000);
+        return () => clearInterval(interval);
+    }, [apiBaseUrl, port]);
+
+    useEffect(() => {
+        let interval: NodeJS.Timeout;
+        const fetchData = () => {
+            fetchDataSummary().then(() => clearInterval(interval));
+        };
+        fetchData();
+        interval = setInterval(fetchData, 2000);
+        return () => clearInterval(interval);
+    }, [apiBaseUrl, port]);
+
+    useEffect(() => {
+        let interval: NodeJS.Timeout;
+        const fetchUtil = () => {
+            fetchIpopUtilization().then(() => clearInterval(interval));
+        };
+        fetchUtil();
+        interval = setInterval(fetchUtil, 2000);
+        return () => clearInterval(interval);
+    }, [apiBaseUrl, port]);
+
+    // Event Handlers
+    const handleRefresh = async () => {
+        setIsLoading(true);
+        setLastRefresh(new Date());
+
+        try {
+            await Promise.all([
+                fetchAllCableSystems(),
+                fetchDataSummary()
+            ]);
         } catch (error) {
             console.error('Error refreshing data:', error);
         } finally {
@@ -344,10 +667,9 @@ const HideToolTip = () => {
         }
     };
 
-    // Modal handler functions
     const handleSystemClick = (system: CableSystemData) => {
         setSelectedSystem(system);
-        setTabValue(0); // Reset to first tab
+        setTabValue(0);
         setOpen(true);
     };
 
@@ -360,195 +682,33 @@ const HideToolTip = () => {
         setTabValue(newValue);
     };
 
-    // Function to render the appropriate chart component based on system and segment
-    const renderChartComponent = (systemName: string, segmentIndex: number) => {
-        switch (systemName) {
-            case 'TGN-IA':
-                switch (segmentIndex) {
-                    case 0: return <TGNSingapore />;
-                    case 1: return <TGNHongkong />;
-                    case 2: return <TGNJapan />;
-                    default: return <TGNSingapore />;
-                }
-            case 'SJC':
-                switch (segmentIndex) {
-                    case 0: return <SJCSingapore />;
-                    case 1: return <SJCHongkong />;
-                    case 2: return <SJCJapan />;
-                    default: return <SJCSingapore />;
-                }
-            case 'SEA-US':
-                switch (segmentIndex) {
-                    case 0: return <Seattle />;
-                    case 1: return <LosAngeles />;
-                    default: return <Seattle />;
-                }
-            case 'C2C':
-                switch (segmentIndex) {
-                    case 0: return <C2CSingapore />;
-                    case 1: return <C2CHongkong />;
-                    case 2: return <C2CJapan />;
-                    default: return <C2CSingapore />;
-                }
-            default:
-                return <div>No data available</div>;
-        }
-    };
-
-    // Remove the old useEffect for cable systems data
-    // The new implementation fetches data for all systems in the main useEffect above
-
+    // Render
     return (
-        <Box
-            sx={{
-                background: 'rgba(255, 255, 255, 0.3)',
-                p: 3,
-                width: '100%',
-                height: '100%',
-                display: 'flex',
-                flexDirection: 'column',
-                alignItems: 'center',
-                justifyContent: 'flex-start',
-                overflowY: 'auto',
-                // Enhanced scrollbar styling
-                '&::-webkit-scrollbar': { 
-                    width: '8px',
-                    backgroundColor: 'rgba(0,0,0,0.05)'
-                },
-                '&::-webkit-scrollbar-thumb': { 
-                    background: 'rgba(0,0,0,0.3)', 
-                    borderRadius: '4px',
-                    '&:hover': {
-                        background: 'rgba(0,0,0,0.4)'
-                    }
-                },
-                '&::-webkit-scrollbar-track': {
-                    background: 'rgba(0,0,0,0.1)',
-                    borderRadius: '4px'
-                }
-            }}
+        <Box 
+            sx={styles.container}
+            onMouseEnter={() => setIsTooltipHovered(true)}
+            onMouseLeave={() => setIsTooltipHovered(false)}
         >
-            <Typography
-                variant="h5"
-                sx={{
-                    fontWeight: 700,
-                    color: '#3854A5',
-                    mb: 3,
-                    mt: 2,
-                    textAlign: 'center'
-                }}
-            >
-                Cable System Overview
-            </Typography>
-
-            {/* Refresh Button and Last Update */}
-            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%', maxWidth: 280, mb: 2 }}>
-                <Typography variant="caption" sx={{ color: '#666', fontSize: '10px' }}>
-                    Last updated: {lastRefresh.toLocaleTimeString()}
+            {/* Fixed Header Section */}
+            <Box sx={styles.headerContainer}>
+                <Typography variant="h5" sx={{ fontWeight: 700, color: COLORS.primary }}>
+                    Cable System Overview
                 </Typography>
-                <Tooltip title="Refresh Data">
-                    <IconButton
-                        size="small"
-                        onClick={handleRefresh}
-                        disabled={isLoading}
-                        sx={{
-                            color: '#3854A5',
-                            '&:disabled': { color: '#ccc' }
-                        }}
-                    >
-                        <RefreshIcon
-                            fontSize="small"
-                            sx={{
-                                animation: isLoading ? 'spin 1s linear infinite' : 'none',
-                                '@keyframes spin': {
-                                    '0%': { transform: 'rotate(0deg)' },
-                                    '100%': { transform: 'rotate(360deg)' }
-                                }
-                            }}
-                        />
-                    </IconButton>
-                </Tooltip>
             </Box>
 
-            {/* Capacity and Utilization Card */}
-            <Paper
-                sx={{
-                    background: 'linear-gradient(135deg, #e3f2fd 0%, #bbdefb 100%)',
-                    p: 2,
-                    boxShadow: 2,
-                    mb: 3,
-                    width: '100%',
-                    maxWidth: 280,
-                    border: '1px solid rgba(56, 84, 165, 0.2)'
-                }}
-            >
-                <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
-                    <Typography variant="body2" sx={{ color: '#666', fontSize: '12px', textTransform: 'uppercase', letterSpacing: 1 }}>
-                        CAPACITY:
-                    </Typography>
-                </Box>
-                <Typography variant="h4" sx={{ fontWeight: 700, color: '#3854A5', mb: 2 }}>
-                    {stats.totalGbps} Gbps
-                </Typography>
-                <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                    <Typography variant="body2" sx={{ color: '#666', fontSize: '12px', textTransform: 'uppercase', letterSpacing: 1 }}>
-                        AVERAGE UTILIZATION:
-                    </Typography>
-                </Box>
-                <Typography variant="h5" sx={{ fontWeight: 600, color: '#3854A5' }}>
-                    {ipopUtilization}
-                    {ipopDifference && (
-                        <Chip
-                            label={ipopDifference}
-                            size="small"
-                            sx={{
-                                ml: 1,
-                                fontSize: '10px',
-                                height: '20px',
-                                color: ipopDifference.startsWith('+') ? '#d32f2f' : '#388e3c',
-                                backgroundColor: ipopDifference.startsWith('+') ? '#ffebee' : '#e8f5e8'
-                            }}
-                            icon={ipopDifference.startsWith('+') ? <TrendingUpIcon /> : <TrendingDownIcon />}
-                        />
-                    )}
-                </Typography>
-            </Paper>
+            {/* Fixed Capacity Overview */}
+            <CapacityCard
+                totalGbps={stats.totalGbps}
+                utilization={ipopUtilization}
+                difference={ipopDifference}
+            />
 
-            {/* System Statistics */}
-            <Box sx={{ display: 'flex', justifyContent: 'space-around', width: '100%', maxWidth: 280, mb: 3 }}>
-                <Box sx={{ textAlign: 'center' }}>
-                    <Typography variant="h6" sx={{ fontWeight: 700, color: '#3854A5' }}>
-                        {cableSystemsData.reduce((sum, system) => sum + system.activeSegments, 0)}
-                    </Typography>
-                    <Typography variant="caption" sx={{ color: '#666', fontSize: '10px' }}>
-                        ACTIVE SYSTEMS
-                    </Typography>
-                </Box>
-                <Box sx={{ textAlign: 'center' }}>
-                    <Typography variant="h6" sx={{ fontWeight: 700, color: '#FF9800' }}>
-                        {cableSystemsData.reduce((sum, system) => sum + (system.segments.length - system.activeSegments), 0)}
-                    </Typography>
-                    <Typography variant="caption" sx={{ color: '#666', fontSize: '10px' }}>
-                        IDLE SYSTEMS
-                    </Typography>
-                </Box>
-                <Box sx={{ textAlign: 'center' }}>
-                    <Typography variant="h6" sx={{ fontWeight: 700, color: '#4CAF50' }}>
-                        {cableSystemsData.length > 0 ?
-                            Math.round(cableSystemsData.reduce((sum, system) => sum + system.avgUtilization, 0) / cableSystemsData.length) : 0}%
-                    </Typography>
-                    <Typography variant="caption" sx={{ color: '#666', fontSize: '10px' }}>
-                        AVG LOAD
-                    </Typography>
-                </Box>
-            </Box>
-
-            {/* Four Main Cable Systems - Replicating Map Tooltips */}
+            {/* Fixed Cable Systems Section Header */}
             <Typography
                 variant="h6"
                 sx={{
                     fontWeight: 600,
-                    color: '#3854A5',
+                    color: COLORS.primary,
                     mb: 2,
                     textAlign: 'center'
                 }}
@@ -556,172 +716,35 @@ const HideToolTip = () => {
                 Cable Systems Details
             </Typography>
 
-            {cableSystemsData.map((system, index) => (
-                    <Paper
-                        key={system.name}
-                        onClick={() => handleSystemClick(system)}
-                        sx={{
-                            background: `linear-gradient(135deg, ${system.color}20 0%, ${system.color}10 100%)`,
-                            p: 2,
-                            borderRadius: 2,
-                            boxShadow: 2,
-                            mb: 2,
-                            width: '100%',
-                            maxWidth: 280,
-                            border: `2px solid ${system.color}`,
-                            position: 'relative',
-                            cursor: 'pointer',
-                            transition: 'all 0.2s ease-in-out',
-                            '&:hover': {
-                                boxShadow: 4,
-                                transform: 'translateY(-2px)',
-                                background: `linear-gradient(135deg, ${system.color}30 0%, ${system.color}20 100%)`
-                            }
-                        }}
-                    >
-                        {/* System Color Indicator */}
-                        <Box
-                            sx={{
-                                position: 'absolute',
-                                top: -8,
-                                right: -8,
-                                background: system.color,
-                                color: 'white',
-                                borderRadius: '50%',
-                                width: 24,
-                                height: 24,
-                                display: 'flex',
-                                alignItems: 'center',
-                                justifyContent: 'center',
-                                fontSize: '12px',
-                                fontWeight: 700,
-                                boxShadow: 2
-                            }}
-                        >
-                            {index + 1}
-                        </Box>
+            {/* Scrollable Cable System Cards Container */}
+           
+            <Box
+            sx={{
+                width: '100%',
+                maxWidth: 280,
+                flex: 1,
+                overflowY: 'auto',
+                pr: 1,
+                transition: 'all 0.3s ease-in-out',
+                ...scrollBarStyles,
+            }}
+            >
+            {cableSystemsData.map((system) => (
+                <SystemCard
+                key={system.name}
+                system={system}
+                onClick={handleSystemClick}
+                />
+            ))}
+            </Box>
 
-                        {/* System Header */}
-                        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-                            <Typography variant="h6" sx={{ fontWeight: 700, color: system.color }}>
-                                {system.name}
-                            </Typography>
-                            <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
-                                <Chip
-                                    label={`${system.activeSegments}/${system.segments.length} active`}
-                                    size="small"
-                                    sx={{
-                                        fontSize: '10px',
-                                        height: '18px',
-                                        backgroundColor: system.activeSegments > 0 ? '#e8f5e8' : '#ffebee',
-                                        color: system.activeSegments > 0 ? '#388e3c' : '#d32f2f'
-                                    }}
-                                    icon={<SignalCellularAltIcon style={{ fontSize: '12px' }} />}
-                                />
-                                {/* Links Not Working Badge - matching map tooltip style */}
-                                {system.zeroUtilizationCount > 0 && (
-                                    <Chip
-                                        label={system.zeroUtilizationCount}
-                                        size="small"
-                                        sx={{
-                                            fontSize: '10px',
-                                            height: '18px',
-                                            minWidth: '22px',
-                                            backgroundColor: '#f44336',
-                                            color: 'white',
-                                            fontWeight: 'bold',
-                                            '& .MuiChip-label': {
-                                                padding: '0 6px'
-                                            }
-                                        }}
-                                    />
-                                )}
-                            </Box>
-                        </Box>
-
-                        {/* System Totals */}
-                        <Box sx={{ mb: 2 }}>
-                            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
-                                <Typography variant="body2" sx={{ color: '#666', fontSize: '11px' }}>
-                                    Total Capacity:
-                                </Typography>
-                                <Typography variant="body2" sx={{ fontWeight: 600, color: system.color }}>
-                                    {system.totalCapacity.toLocaleString()} Gbps
-                                </Typography>
-                            </Box>
-
-                            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
-                                <Typography variant="body2" sx={{ color: '#666', fontSize: '11px' }}>
-                                    Average Utilization:
-                                </Typography>
-                                <Typography variant="body2" sx={{ fontWeight: 600, color: system.color }}>
-                                    {system.avgUtilization}%
-                                </Typography>
-                            </Box>
-
-                            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                <Typography variant="body2" sx={{ color: '#666', fontSize: '11px' }}>
-                                    Links Not Working:
-                                </Typography>
-                                <Typography variant="body2" sx={{
-                                    fontWeight: 600,
-                                    color: system.zeroUtilizationCount > 0 ? '#f44336' : '#4caf50'
-                                }}>
-                                    {system.zeroUtilizationCount}
-                                </Typography>
-                            </Box>
-                        </Box>
-
-                        {/* Segments List */}
-                        <Box sx={{ mt: 1 }}>
-                            <Typography variant="caption" sx={{ color: '#888', fontSize: '10px', textTransform: 'uppercase' }}>
-                                Segments:
-                            </Typography>
-                            {system.segments.map((segment, segIndex) => (
-                                <Box key={segIndex} sx={{
-                                    display: 'flex',
-                                    justifyContent: 'space-between',
-                                    alignItems: 'center',
-                                    mt: 0.5,
-                                    p: 0.5,
-                                    borderRadius: 1,
-                                    backgroundColor: segment.utilization > 0 ? `${system.color}10` : 'rgba(0,0,0,0.05)'
-                                }}>
-                                    <Typography variant="caption" sx={{ fontSize: '10px', color: '#555' }}>
-                                        {segment.name}
-                                    </Typography>
-                                    <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
-                                        <Typography variant="caption" sx={{ fontSize: '9px', color: '#777' }}>
-                                            {segment.capacity.toLocaleString()}G
-                                        </Typography>
-                                        <Chip
-                                            label={`${segment.utilization}%`}
-                                            size="small"
-                                            sx={{
-                                                fontSize: '8px',
-                                                height: '14px',
-                                                minWidth: '30px',
-                                                backgroundColor: segment.utilization > 0 ? system.color : '#eee',
-                                                color: segment.utilization > 0 ? 'white' : '#999'
-                                            }}
-                                        />
-                                    </Box>
-                                </Box>
-                            ))}
-                        </Box>
-
-                        {/* Last Update */}
-                        <Typography variant="caption" sx={{ color: '#999', fontSize: '9px', mt: 1, display: 'block' }}>
-                            Last updated: {system.lastUpdate.toLocaleTimeString()}
-                        </Typography>
-                        
-                        
-                    </Paper>
-            ))}            {/* Modal Dialog */}
+            {/* Modal Dialog */}
             {selectedSystem && (
                 <Dialog open={open} onClose={handleClose} maxWidth="sm" fullWidth>
                     <DialogTitle>
-                        <Typography variant="h4">{selectedSystem.name} Submarine Cable</Typography>
+                        <Typography variant="h4">
+                            {selectedSystem.name} Submarine Cable
+                        </Typography>
                     </DialogTitle>
                     <Divider />
                     <DialogContent sx={{ pb: 2 }}>
@@ -758,5 +781,4 @@ const HideToolTip = () => {
         </Box>
     );
 };
-
 export default HideToolTip;

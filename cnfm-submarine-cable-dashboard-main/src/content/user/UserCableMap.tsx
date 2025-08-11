@@ -1,4 +1,4 @@
-import { Box, Typography, Paper } from '@mui/material';
+import { Box, Typography, Paper, Snackbar, Alert } from '@mui/material';
 import { IconButton, Tooltip } from '@mui/material';
 import MenuIcon from '@mui/icons-material/Menu';
 import InfoIcon from '@mui/icons-material/Info';
@@ -184,60 +184,79 @@ function DeletedCableMarker({ position, cable, markerStyle, onClose }: DeletedCa
       pane: 'deletedCablePane'
     });
 
-    // Create popup content
+    // Enhanced popup content with additional deleted cable information
     const popupContent = `
-      <div class="cable-cut-popup" style="font-family: Arial, sans-serif; width: 200px; box-shadow: 0 4px 12px rgba(0,0,0,0.3); border-radius: 5px; overflow: hidden; border: 2px solid ${markerStyle.color};">
-        <div style="background-color: ${markerStyle.color}; color: white; padding: 6px; text-align: center; font-weight: bold; font-size: 13px; letter-spacing: 0.3px; text-shadow: 1px 1px 2px rgba(0,0,0,0.3);">
-          ${(cable.cut_type || 'UNKNOWN').toUpperCase()}
+      <div class="cable-cut-popup" style="font-family: Arial, sans-serif; width: 320px; min-width: 320px; box-shadow: 0 4px 12px rgba(0,0,0,0.3); border-radius: 8px; overflow: hidden; border: 2px solid ${markerStyle.color};">
+        <div style="background: linear-gradient(135deg, ${markerStyle.color} 0%, ${markerStyle.color}dd 100%); color: white; padding: 8px; text-align: center; font-weight: bold; font-size: 14px; letter-spacing: 0.5px; text-shadow: 1px 1px 3px rgba(0,0,0,0.4);">
+          🚨 DELETED CABLE - ${(cable.cut_type || 'UNKNOWN').toUpperCase()}
         </div>
-        <div style="background-color: white; padding: 10px;">
+        <div style="background-color: white; padding: 12px;">
+          <div style="margin-bottom: 10px; padding: 6px; background-color: #fff3cd; border: 1px solid #ffeaa7; border-radius: 4px; font-size: 11px; color: #856404;">
+            <strong>ℹ️ Cable Status:</strong> This cable has been marked as deleted from the system
+          </div>
           <table style="width: 100%; border-collapse: collapse; font-size: 12px;">
             <tr>
-              <td style="font-weight: bold; padding-bottom: 5px; color: #333;">Distance:</td>
-              <td style="text-align: right; padding-bottom: 5px; color: #666;">${Number(cable.distance || 0).toFixed(2)} km</td>
+              <td style="font-weight: bold; padding-bottom: 6px; color: #333; width: 35%;">🔧 Cut Type:</td>
+              <td style="text-align: right; padding-bottom: 6px; color: #666; font-weight: 600;">${(cable.cut_type || 'Unknown').toUpperCase()}</td>
             </tr>
             <tr>
-              <td style="font-weight: bold; padding-bottom: 5px; color: #333;">Depth:</td>
-              <td style="text-align: right; padding-bottom: 5px; color: #666;">${cable.depth || 'N/A'} m</td>
+              <td style="font-weight: bold; padding-bottom: 6px; color: #333;">📏 Distance:</td>
+              <td style="text-align: right; padding-bottom: 6px; color: #666;">${Number(cable.distance || 0).toFixed(2)} km</td>
             </tr>
             <tr>
-              <td style="font-weight: bold; padding-bottom: 5px; color: #333;">Lat:</td>
-              <td style="text-align: right; padding-bottom: 5px; color: #666; font-family: monospace; font-size: 11px;">${Number(cable.latitude).toFixed(4)}</td>
+              <td style="font-weight: bold; padding-bottom: 6px; color: #333;">🌊 Depth:</td>
+              <td style="text-align: right; padding-bottom: 6px; color: #666;">${cable.depth || 'N/A'} m</td>
             </tr>
             <tr>
-              <td style="font-weight: bold; padding-bottom: 5px; color: #333;">Lng:</td>
-              <td style="text-align: right; padding-bottom: 5px; color: #666; font-family: monospace; font-size: 11px;">${Number(cable.longitude).toFixed(4)}</td>
+              <td style="font-weight: bold; padding-bottom: 6px; color: #333;">🧭 Latitude:</td>
+              <td style="text-align: right; padding-bottom: 6px; color: #666; font-family: monospace; font-size: 11px;">${Number(cable.latitude).toFixed(6)}°</td>
             </tr>
             <tr>
-              <td style="font-weight: bold; padding-bottom: 5px; color: #333;">Date:</td>
-              <td style="text-align: right; padding-bottom: 5px; color: #666; font-size: 11px;">
+              <td style="font-weight: bold; padding-bottom: 6px; color: #333;">🧭 Longitude:</td>
+              <td style="text-align: right; padding-bottom: 6px; color: #666; font-family: monospace; font-size: 11px;">${Number(cable.longitude).toFixed(6)}°</td>
+            </tr>
+            <tr>
+              <td style="font-weight: bold; padding-bottom: 6px; color: #333;">📅 Fault Date:</td>
+              <td style="text-align: right; padding-bottom: 6px; color: #666; font-size: 11px;">
                 ${cable.fault_date 
                   ? new Date(cable.fault_date).toLocaleDateString('en-US', {
+                      weekday: 'short',
                       month: 'short',
                       day: 'numeric',
-                      year: '2-digit'
+                      year: 'numeric'
                     })
-                  : 'N/A'
+                  : 'Not Available'
                 }
               </td>
             </tr>
             <tr>
-              <td style="font-weight: bold; color: #333;">ID:</td>
-              <td style="text-align: right; color: #666; font-family: monospace; font-size: 11px;">
-                ${cable.cut_id && cable.cut_id.length > 12 
-                  ? cable.cut_id.substring(0, 12) + '...' 
-                  : cable.cut_id || 'N/A'
-                }
+              <td style="font-weight: bold; padding-bottom: 6px; color: #333;">🆔 Cable ID:</td>
+              <td style="text-align: right; padding-bottom: 6px; color: #666; font-family: monospace; font-size: 10px; word-break: break-all;">
+                ${cable.cut_id || 'Not Available'}
               </td>
             </tr>
+            <tr>
+              <td style="font-weight: bold; padding-bottom: 6px; color: #333;">🔄 Status:</td>
+              <td style="text-align: right; padding-bottom: 6px; color: #dc3545; font-weight: bold; font-size: 11px;">
+                ${cable.simulated === 'true' ? '⚡ SIMULATED' : '🔴 DELETED'}
+              </td>
+            </tr>
+            ${cable.cable_type ? `
+            <tr>
+              <td style="font-weight: bold; color: #333;">📡 Cable Type:</td>
+              <td style="text-align: right; color: #666; font-size: 11px;">${cable.cable_type}</td>
+            </tr>
+            ` : ''}
           </table>
         </div>
         <div style="background-color: #f8f9fa; padding: 10px; border-top: 1px solid #dee2e6; display: flex; justify-content: center;">
           <button class="close-deleted-cable-btn" onclick="
             const closeEvent = new CustomEvent('closeDeletedCable');
             window.dispatchEvent(closeEvent);
-          " style="background-color: #666; color: white; border: none; padding: 6px 12px; border-radius: 3px; cursor: pointer; font-size: 11px; font-weight: bold;" onmouseover="this.style.backgroundColor='#555'" onmouseout="this.style.backgroundColor='#666'">
-            ✕ Close
+          " style="background: linear-gradient(135deg, #6c757d 0%, #5a6268 100%); color: white; border: none; padding: 8px 16px; border-radius: 5px; cursor: pointer; font-size: 12px; font-weight: bold; transition: all 0.3s ease; box-shadow: 0 2px 4px rgba(0,0,0,0.1);" 
+          onmouseover="this.style.transform='translateY(-1px)'; this.style.boxShadow='0 4px 8px rgba(0,0,0,0.2)'" 
+          onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='0 2px 4px rgba(0,0,0,0.1)'">
+            ✕ Close Popup
           </button>
         </div>
       </div>
@@ -245,8 +264,8 @@ function DeletedCableMarker({ position, cable, markerStyle, onClose }: DeletedCa
 
     marker.bindPopup(popupContent, {
       className: 'smart-positioned-popup',
-      maxWidth: 250,
-      minWidth: 200,
+      maxWidth: 350,
+      minWidth: 320,
       autoPan: true,
       closeButton: false
     });
@@ -309,6 +328,17 @@ const UserCableMap = ({ selectedCable, selectedCutType, mapRef: externalMapRef, 
   const [lastUpdate, setLastUpdate] = useState<string | null>(null);
   const [selectedDeletedCable, setSelectedDeletedCable] = useState<CableData | null>(null);
   const [showDeletedCablePopup, setShowDeletedCablePopup] = useState(false);
+  
+  // Enhanced notification system for deleted cable information
+  const [notification, setNotification] = useState<{
+    open: boolean;
+    message: string;
+    severity: 'success' | 'error' | 'warning' | 'info';
+  }>({
+    open: false,
+    message: '',
+    severity: 'info'
+  });
 
   // Refs
   const mapRef = useRef<L.Map | null>(null);
@@ -335,7 +365,28 @@ const UserCableMap = ({ selectedCable, selectedCutType, mapRef: externalMapRef, 
     }
   }, []);
 
-  // Optimized cable selection handler with proper cleanup
+  // Enhanced notification helper
+  const showNotification = useCallback((message: string, severity: 'success' | 'error' | 'warning' | 'info' = 'info') => {
+    setNotification({ open: true, message, severity });
+  }, []);
+
+  const hideNotification = useCallback(() => {
+    setNotification(prev => ({ ...prev, open: false }));
+  }, []);
+
+  // Initial notification to inform users about the enhanced deleted cable popup feature
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      showNotification(
+        '🔍 Enhanced Deleted Cable Information: Use the sidebar button (☰) to view detailed information about deleted cables with enhanced popups!', 
+        'info'
+      );
+    }, 2000); // Show after 2 seconds
+
+    return () => clearTimeout(timer);
+  }, [showNotification]);
+
+  // Optimized cable selection handler with proper cleanup and faster animation
   const handleCableSelection = useCallback((cable: CableData) => {
     if (!cable || !cable.latitude || !cable.longitude) return;
     
@@ -350,27 +401,39 @@ const UserCableMap = ({ selectedCable, selectedCutType, mapRef: externalMapRef, 
     setSelectedDeletedCable(cable);
     setShowDeletedCablePopup(true);
     
-    // Apply smooth transition with offset positioning to show marker slightly below center
-    setTimeout(() => {
-      const mapContainer = map.getContainer();
-      const mapHeight = mapContainer.clientHeight;
-      
-      // Calculate offset to position marker slightly below center of viewport
-      const targetPoint = map.project([cable.latitude, cable.longitude], 14);
-      
-      // Offset the view so marker appears slightly below center (roughly 60% down from top)
-      const offsetY = mapHeight * 0.15; // Reduced offset for more centered positioning
-      const adjustedPoint = L.point(targetPoint.x, targetPoint.y - offsetY);
-      
-      // Convert back to lat/lng
-      const adjustedCenter = map.unproject(adjustedPoint, 14);
-      
-      map.setView([adjustedCenter.lat, adjustedCenter.lng], 14, { 
-        animate: true,
-        duration: 0.8,
-        easeLinearity: 0.2
-      });
-    }, 50);
+    // Calculate distance-based animation timing for optimal UX
+    const currentCenter = map.getCenter();
+    const targetLat = parseFloat(parseFloat(cable.latitude.toString()).toFixed(6));
+    const targetLng = parseFloat(parseFloat(cable.longitude.toString()).toFixed(6));
+    const distance = currentCenter.distanceTo(L.latLng(targetLat, targetLng));
+    
+    // Determine optimal animation duration based on distance
+    let animationDuration: number;
+    if (distance > 2000000) animationDuration = 1.2; // Very long distance
+    else if (distance > 500000) animationDuration = 0.9; // Long distance  
+    else if (distance > 100000) animationDuration = 0.7; // Medium distance
+    else if (distance > 10000) animationDuration = 0.5; // Short distance
+    else animationDuration = 0.3; // Very short distance
+    
+    // Apply immediate smooth transition with offset positioning
+    const mapContainer = map.getContainer();
+    const mapHeight = mapContainer.clientHeight;
+    
+    // Calculate offset to position marker slightly below center of viewport
+    const targetPoint = map.project([cable.latitude, cable.longitude], 14);
+    
+    // Reduced offset for more centered positioning  
+    const offsetY = mapHeight * 0.10; // Further reduced for better centering
+    const adjustedPoint = L.point(targetPoint.x, targetPoint.y - offsetY);
+    
+    // Convert back to lat/lng
+    const adjustedCenter = map.unproject(adjustedPoint, 14);
+    
+    map.setView([adjustedCenter.lat, adjustedCenter.lng], 14, { 
+      animate: true,
+      duration: animationDuration, // Dynamic duration based on distance
+      easeLinearity: 0.1 // Faster, smoother easing
+    });
   }, [externalMapRef]);
 
   // Add custom CSS for smart popup positioning with proper cleanup
@@ -385,13 +448,13 @@ const UserCableMap = ({ selectedCable, selectedCutType, mapRef: externalMapRef, 
     style.textContent = `
       .smart-positioned-popup .leaflet-popup-content-wrapper {
         background: white;
-        border-radius: 4px;
-        box-shadow: 0 3px 8px rgba(0,0,0,0.12);
-        border: 1px solid #ccc;
-        max-width: 140px !important;
-        min-width: 120px !important;
-        font-size: 9px;
-        line-height: 1.2;
+        border-radius: 8px;
+        box-shadow: 0 4px 20px rgba(0,0,0,0.15);
+        border: 1px solid #ddd;
+        max-width: 350px !important;
+        min-width: 320px !important;
+        font-size: 12px;
+        line-height: 1.4;
         padding: 0 !important;
       }
       
@@ -404,8 +467,8 @@ const UserCableMap = ({ selectedCable, selectedCutType, mapRef: externalMapRef, 
       
       .smart-positioned-popup .leaflet-popup-tip {
         background: white;
-        border: 1px solid #ccc;
-        box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        border: 1px solid #ddd;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.1);
       }
       
       .smart-positioned-popup {
@@ -413,20 +476,26 @@ const UserCableMap = ({ selectedCable, selectedCutType, mapRef: externalMapRef, 
       }
       
       .leaflet-popup {
-        margin-bottom: 10px;
+        margin-bottom: 15px;
         pointer-events: auto !important;
       }
       
       .smart-positioned-popup .leaflet-popup-content button {
         font-family: inherit;
-        font-size: 8px;
-        padding: 3px 6px;
+        font-size: 12px;
+        padding: 8px 16px;
         margin: 0;
-        border-radius: 2px;
+        border-radius: 5px;
         border: none;
         cursor: pointer;
-        transition: all 0.2s ease;
+        transition: all 0.3s ease;
         font-weight: bold;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+      }
+      
+      .smart-positioned-popup .leaflet-popup-content button:hover {
+        transform: translateY(-1px);
+        box-shadow: 0 4px 8px rgba(0,0,0,0.2);
       }
       
       .leaflet-popup-close-button {
@@ -435,28 +504,44 @@ const UserCableMap = ({ selectedCable, selectedCutType, mapRef: externalMapRef, 
       
       @media (max-width: 768px) {
         .smart-positioned-popup .leaflet-popup-content-wrapper {
-          max-width: 120px !important;
-          min-width: 100px !important;
-          font-size: 8px;
+          max-width: 280px !important;
+          min-width: 260px !important;
         }
         
         .smart-positioned-popup .leaflet-popup-content button {
-          font-size: 7px;
-          padding: 2px 4px;
+          font-size: 10px;
+          padding: 6px 12px;
         }
       }
       
       @media (max-width: 480px) {
         .smart-positioned-popup .leaflet-popup-content-wrapper {
-          max-width: 110px !important;
-          min-width: 90px !important;
+          max-width: 260px !important;
+          min-width: 240px !important;
+        }
+        
+        .smart-positioned-popup .leaflet-popup-content button {
+          font-size: 9px;
+          padding: 4px 8px;
         }
       }
       
+      /* Enhanced animations for better UX */
       .cable-cut-popup {
+        animation: popupSlideIn 0.3s ease-out;
         box-sizing: border-box;
         width: 100% !important;
-        max-width: 140px;
+      }
+      
+      @keyframes popupSlideIn {
+        from {
+          transform: translateY(-10px);
+          opacity: 0;
+        }
+        to {
+          transform: translateY(0);
+          opacity: 1;
+        }
       }
     `;
     document.head.appendChild(style);
@@ -469,29 +554,51 @@ const UserCableMap = ({ selectedCable, selectedCutType, mapRef: externalMapRef, 
     };
   }, []);
 
-  // Pan/zoom to selected cable location with smooth transition (from Simulator)
+  // Pan/zoom to selected cable location with enhanced smooth transition
   useEffect(() => {
     if (selectedCable && selectedCable.latitude && selectedCable.longitude) {
       // Use external mapRef if provided, otherwise use internal mapRef
       const map = externalMapRef?.current || mapRef.current;
       if (map) {
-        // Small delay to ensure map is fully ready and prevent flickering
-        const timeoutId = setTimeout(() => {
-          // Stop any ongoing animations before starting new one to prevent conflicts
-          map.stop();
-          
-          // Apply smooth transition with enhanced animation parameters
-          map.setView([selectedCable.latitude, selectedCable.longitude], 14, {
-            animate: true,
-            duration: 0.8, // Slightly longer animation for smoother experience
-            easeLinearity: 0.2 // Smoother easing
-          });
-        }, 50); // 50ms delay to prevent flickering
-
-        return () => clearTimeout(timeoutId);
+        // Immediate smooth transition without delay for responsive UX
+        // Stop any ongoing animations before starting new one to prevent conflicts
+        map.stop();
+        
+        // Calculate distance-based animation timing for optimal performance
+        const currentCenter = map.getCenter();
+        const targetLat = parseFloat(parseFloat(selectedCable.latitude.toString()).toFixed(6));
+        const targetLng = parseFloat(parseFloat(selectedCable.longitude.toString()).toFixed(6));
+        const distance = currentCenter.distanceTo(L.latLng(targetLat, targetLng));
+        
+        // Determine optimal animation duration based on distance
+        let animationDuration: number;
+        if (distance > 2000000) animationDuration = 1.2; // Very long distance
+        else if (distance > 500000) animationDuration = 0.9; // Long distance  
+        else if (distance > 100000) animationDuration = 0.7; // Medium distance
+        else if (distance > 10000) animationDuration = 0.5; // Short distance
+        else animationDuration = 0.3; // Very short distance
+        
+        // Apply enhanced smooth transition immediately
+        map.setView([selectedCable.latitude, selectedCable.longitude], 14, {
+          animate: true,
+          duration: animationDuration, // Dynamic duration for optimal experience
+          easeLinearity: 0.1 // Faster, smoother easing
+        });
       }
     }
   }, [selectedCable, externalMapRef]);
+
+  // Initial notification to inform users about the enhanced deleted cable popup feature
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      showNotification(
+        '🔍 Enhanced Deleted Cable Information: Use the sidebar button (☰) to view detailed information about deleted cables with enhanced popups!', 
+        'info'
+      );
+    }, 2000); // Show after 2 seconds
+
+    return () => clearTimeout(timer);
+  }, [showNotification]);
 
   // Map height update with debounced resize handler
   useEffect(() => {
@@ -619,11 +726,29 @@ const UserCableMap = ({ selectedCable, selectedCutType, mapRef: externalMapRef, 
     setSelectedDeletedCable(cable);
     setShowDeletedCablePopup(true);
     handleCableSelection(cable);
-  }, [handleCableSelection]);
+    
+    // Show informative notification about the deleted cable
+    const cutType = cable.cut_type || 'Unknown';
+    const cableId = cable.cut_id ? cable.cut_id.substring(0, 8) + '...' : 'N/A';
+    showNotification(
+      `🚨 Viewing deleted cable - ${cutType} (ID: ${cableId}). Check popup for detailed information.`, 
+      'info'
+    );
+  }, [handleCableSelection, showNotification]);
 
   const handleSidebarToggle = useCallback(() => {
-    setSidebarOpen(prev => !prev);
-  }, []);
+    setSidebarOpen(prev => {
+      const newState = !prev;
+      // Show helpful notification when opening sidebar
+      if (newState) {
+        showNotification(
+          '📋 Deleted Cables Sidebar opened. Click on any cable to view detailed information and location on the map.', 
+          'info'
+        );
+      }
+      return newState;
+    });
+  }, [showNotification]);
 
   const handleSidebarClose = useCallback(() => {
     setSidebarOpen(false);
@@ -633,7 +758,8 @@ const UserCableMap = ({ selectedCable, selectedCutType, mapRef: externalMapRef, 
   const handleCloseDeletedCablePopup = useCallback(() => {
     setShowDeletedCablePopup(false);
     setSelectedDeletedCable(null);
-  }, []);
+    showNotification('ℹ️ Deleted cable popup closed.', 'info');
+  }, [showNotification]);
 
   // Optimized formatDate function with memoization
   const formatDate = useCallback((dateStr: string) => {
@@ -974,6 +1100,29 @@ const UserCableMap = ({ selectedCable, selectedCutType, mapRef: externalMapRef, 
       )}
     
       </MapContainer>
+      
+      {/* Enhanced Notification System for Deleted Cable Information */}
+      <Snackbar 
+        open={notification.open} 
+        autoHideDuration={6000} 
+        onClose={hideNotification}
+        anchorOrigin={{ vertical: 'top', horizontal: 'right' }}
+        sx={{ zIndex: 1300 }}
+      >
+        <Alert 
+          onClose={hideNotification} 
+          severity={notification.severity} 
+          sx={{ 
+            width: '100%', 
+            fontSize: '14px',
+            '& .MuiAlert-icon': {
+              fontSize: '20px'
+            }
+          }}
+        >
+          {notification.message}
+        </Alert>
+      </Snackbar>
     </Box>
   );
 };

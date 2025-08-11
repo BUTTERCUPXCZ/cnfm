@@ -483,7 +483,7 @@ const CableMap: React.FC<CableMapProps> = ({ selectedCable, selectedCutType, map
       <Box sx={{ position: 'relative', width: '100%', height: mapHeight }}>
         {/* Left sidebar toggle button */}
         <IconButton
-          sx={{ position: 'absolute', top: 16, left: 50, zIndex: 1200, background: '#fff', boxShadow: 2 }}
+          sx={{ position: 'absolute', top: 16, left: 16, zIndex: 1200, background: '#fff', boxShadow: 2 }}
           onClick={() => setSidebarOpen((open) => !open)}
           aria-label="Show Deleted Cables Sidebar"
         >
@@ -513,9 +513,22 @@ const CableMap: React.FC<CableMapProps> = ({ selectedCable, selectedCutType, map
               display: 'flex',
               flexDirection: 'column',
               boxShadow: 4,
-              borderRadius: '8px',
+              borderRadius: '1px',
               overflow: 'hidden',
               background: 'rgba(255, 255, 255, 0.7)',
+              transform: sidebarOpen ? 'translateX(0)' : 'translateX(-100%)',
+              transition: 'transform 0.3s ease-in-out',
+              animation: 'slideInFromLeft 0.3s ease-out',
+              '@keyframes slideInFromLeft': {
+                '0%': {
+                  transform: 'translateX(-100%)',
+                  opacity: 0,
+                },
+                '100%': {
+                  transform: 'translateX(0)',
+                  opacity: 1,
+                },
+              },
             }}
           >
             <DeletedCablesSidebar
@@ -553,11 +566,79 @@ const CableMap: React.FC<CableMapProps> = ({ selectedCable, selectedCutType, map
               background: 'rgba(255, 255, 255, 0.9)',
             }}
           >
+             
             <HideToolTip />
           </Paper>
         )}
 
-        <MapContainer style={{ height: '100%', width: '100%' }} ref={externalMapRef || mapRef}>
+        {/* Capacity and Utilization Display */}
+        <Box
+          sx={{
+            position: 'absolute',
+            top: 10,
+            right: 10,
+            backgroundColor: 'rgba(255, 255, 255, 0.7)',
+            color: 'white',
+            padding: '8px 12px',
+            borderRadius: '8px',
+            zIndex: 1000,
+            fontSize: '14px',
+            flexDirection: 'row'
+          }}
+        >
+          <Typography variant="caption" color="gray">
+            Capacity:
+          </Typography>
+          <Typography variant="h4" color="black">
+            {stats.totalGbps} Gbps
+          </Typography>
+
+          <Typography variant="caption" color="gray">
+            Average Utilization:
+          </Typography>
+          <Typography variant="h4" color="black">
+            {ipopUtilization}
+            {/* {parseFloat(ipopDifference) !== 0 && (
+              <Box
+                sx={(theme) => {
+                  const diff = parseFloat(ipopDifference);
+
+                  return {
+                    display: 'inline-block',
+                    padding: '2px 10px',
+                    borderRadius: '999px',
+                    fontWeight: 'bold',
+                    fontSize: '14px',
+                    backgroundColor:
+                      diff < 0
+                        ? theme.colors.error.lighter
+                        : theme.colors.success.lighter,
+                    color:
+                      diff < 0
+                        ? theme.colors.error.main
+                        : theme.colors.success.main
+                  };
+                }}
+              >
+                {ipopDifference}
+              </Box>
+            )} */}
+          </Typography>
+        </Box>
+
+        <Box
+          sx={{
+            height: '100%',
+            width: '100%',
+            '& .leaflet-control-zoom': {
+              display: 'none !important'
+            }
+          }}
+        >
+          <MapContainer 
+            style={{ height: '100%', width: '100%' }} 
+            ref={externalMapRef || mapRef}
+          >
           <RemoveAttribution />
           <ChangeView center={[18, 134]} zoom={3.5} />
           <TileLayer
@@ -699,6 +780,7 @@ const CableMap: React.FC<CableMapProps> = ({ selectedCable, selectedCutType, map
             </Marker>
           )}
         </MapContainer>
+        </Box>
       </Box>
     </CableMapErrorBoundary>
   );

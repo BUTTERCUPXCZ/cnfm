@@ -18,10 +18,10 @@ import React, { useEffect, useState, useCallback } from 'react';
 import SegmentUpdate from './SegmentUpdate';
 
 const legendItems = [
-  { name: 'TGN-IA', color: 'yellow' },
-  { name: 'SJC', color: 'blue' },
-  { name: 'SEA-US', color: 'green' },
-  { name: 'C2C', color: 'orange' }
+  { name: 'TGN-IA', color: '#722ED1' },
+  { name: 'SJC', color: '#1976D2' },
+  { name: 'SEA-US', color: '#2E7D32' },
+  { name: 'C2C', color: '#F57C00' }
 ];
 
 function AdminDashboard() {
