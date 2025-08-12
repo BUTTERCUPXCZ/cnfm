@@ -806,7 +806,7 @@ const UserCableMap = ({ selectedCable, selectedCutType, mapRef: externalMapRef, 
   return (
     <Box sx={{ position: 'relative', width: '100%', height: mapHeight }}>
       {/* Enhanced Toggle Button for Comprehensive Sidebar Functionality */}
-      <Box sx={{ position: 'absolute', top: 16, left: 32, zIndex: 1200 }}>
+  <Box sx={{ position: 'absolute', top: 16, left: 8, zIndex: 1200 }}>
         <Tooltip 
           title="Access Full DeletedCablesSidebar Features - Admin-level functionality with smooth animations, detailed popups, and comprehensive cable management" 
           arrow

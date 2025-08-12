@@ -126,26 +126,14 @@ interface SimulationMapProps {
 const SimulationMap: React.FC<SimulationMapProps> = ({ selectedCable, mapRef: externalMapRef }) => {
   const [mapHeight, setMapHeight] = useState('60vh');
   
-  // Pan/zoom to selected cable location with smooth transition
+  // Pan/zoom to selected cable location (revamped: instant jump, no animation, like admin)
   useEffect(() => {
     if (selectedCable && selectedCable.latitude && selectedCable.longitude) {
-      // Use external mapRef if provided, otherwise use internal mapRef
       const map = externalMapRef?.current || mapRef.current;
       if (map) {
-        // Small delay to ensure map is fully ready and prevent flickering
-        const timeoutId = setTimeout(() => {
-          // Stop any ongoing animations before starting new one to prevent conflicts
-          map.stop();
-          
-          // Apply smooth transition with enhanced animation parameters
-          map.setView([selectedCable.latitude, selectedCable.longitude], 14, {
-            animate: true,
-            duration: 0.8, // Slightly longer animation for smoother experience
-            easeLinearity: 0.2 // Smoother easing
-          });
-        }, 50); // 50ms delay to prevent flickering
-
-        return () => clearTimeout(timeoutId);
+        map.setView([selectedCable.latitude, selectedCable.longitude], 14, {
+          animate: false
+        });
       }
     }
   }, [selectedCable, externalMapRef]);
@@ -296,7 +284,7 @@ const SimulationMap: React.FC<SimulationMapProps> = ({ selectedCable, mapRef: ex
   // Ref for map instance
   const mapRef = useRef<L.Map | null>(null);
   return (
-    <Box sx={{ position: 'relative', width: '100%', height: '100%' }}>
+    <Box sx={{ position: 'relative', width: '100%', height: '100%', '& .leaflet-control-zoom': { display: 'none !important' } }}>
       {/* Right sidebar toggle button */}
       <IconButton
         sx={{

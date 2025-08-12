@@ -640,7 +640,7 @@ const CableMap: React.FC<CableMapProps> = ({ selectedCable, selectedCutType, map
             ref={externalMapRef || mapRef}
           >
           <RemoveAttribution />
-          <ChangeView center={[18, 134]} zoom={3.5} />
+          <ChangeView center={[18, 134]} zoom={4} />
           <TileLayer
             url={`https://maps.geoapify.com/v1/tile/klokantech-basic/{z}/{x}/{y}.png?apiKey=${apiConfig.mapApiKey}`}
           />

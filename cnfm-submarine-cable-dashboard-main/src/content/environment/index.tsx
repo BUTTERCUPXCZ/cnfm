@@ -105,7 +105,7 @@ function SimulationEnvironment() {
                   sx={{
                     position: 'absolute',
                     top: 16,
-                    left: 50,
+                    left: 16, // Move button to the left
                     zIndex: 1200,
                     background: '#fff',
                     boxShadow: 2,
@@ -117,7 +117,7 @@ function SimulationEnvironment() {
                   aria-label="Show Deleted Cables Sidebar"
                 >
                   <MenuIcon sx={{ fontSize: 28, color: '#3854A5' }} />
-                </IconButton>
+                </IconButton> 
                 {/* Sidebar Overlay inside the map */}
                 {sidebarOpen && (
                   <Paper
@@ -125,7 +125,7 @@ function SimulationEnvironment() {
                     sx={{
                       position: 'absolute',
                       top: 0,
-                      left: 0,
+                      left: 0, // Restore sidebar to the left
                       height: '100%',
                       width: 360,
                       zIndex: 1100,

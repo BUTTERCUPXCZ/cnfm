@@ -56,6 +56,7 @@ const DeletedCablesSidebar: React.FC<DeletedCablesSidebarProps> = ({
     const [showMapMarker, setShowMapMarker] = useState(false);
     const [markerClickCount, setMarkerClickCount] = useState(0);
     const currentMarkerRef = useRef<L.Marker | null>(null);
+    const tileLayerRef = useRef<L.TileLayer | null>(null);
     
     // Add refs to prevent race conditions and glitches
     const isAnimatingRef = useRef(false);
