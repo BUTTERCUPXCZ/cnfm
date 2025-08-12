@@ -550,10 +550,6 @@ const DeletedCablesSidebar: React.FC<DeletedCablesSidebarProps> = ({
                                     : 'N/A'
                             }</td>
                         </tr>
-                        <tr>
-                            <td style="font-weight: bold; color: #333;">ID:</td>
-                            <td style="text-align: right; color: #666; font-family: monospace; font-size: 11px;">${cable.cut_id.length > 12 ? cable.cut_id.substring(0, 12) + '...' : cable.cut_id}</td>
-                        </tr>
                     </table>
                 </div>
                 ${(isAdmin && isUser) ? `
@@ -879,7 +875,27 @@ const DeletedCablesSidebar: React.FC<DeletedCablesSidebarProps> = ({
                                     variant="subtitle1"
                                     sx={{ fontWeight: 600, color: '#1a2a4b' }}
                                 >
-                                    {cable.distance ?? 'N/A'} km — {cable.cut_id || 'Unknown'}
+                                    {cable.distance ?? 'N/A'} km — {
+                                        (() => {
+                                            if (!cable.cut_id) return 'Unknown';
+                                            const match = cable.cut_id.match(/^([a-zA-Z]+)(\d+)-/);
+                                            let cableName = 'Unknown';
+                                            let cableNumber = '';
+
+                                            if (match) {
+                                            const prefix = match[1].toLowerCase();
+                                            cableNumber = match[2];
+                                            if (prefix === 'sjc') cableName = 'SJC';
+                                            else if (prefix === 'tgnia') cableName = 'TGN-IA';
+                                            else if (prefix === 'seaus') cableName = 'SEA-US';
+                                            }
+
+                                            return cableName !== 'Unknown' && cableNumber
+                                            ? `${cableName} Segment ${cableNumber}`
+                                            : cableName;
+                                        })()
+                                        }
+
                                 </Typography>
 
                                 <Typography
@@ -901,13 +917,13 @@ const DeletedCablesSidebar: React.FC<DeletedCablesSidebarProps> = ({
                                     variant="body2"
                                     sx={{ color: '#444', mt: 0.2 }}
                                 >
-                                    Cut Type: {cable.cut_type || 'Unknown'}
+                                    {cable.cut_type || 'Unknown'}
                                 </Typography>
                                 <Typography
                                     variant="body2"
                                     sx={{ color: '#444', mt: 0.2 }}
                                 >
-                                    Cable Type: {cable.cable_type || 'Unknown'}
+                                    {cable.cable_type || 'Unknown'}
                                 </Typography>
                             </ListItem>
                         ))
@@ -939,8 +955,7 @@ const DeletedCablesSidebar: React.FC<DeletedCablesSidebarProps> = ({
                 </DialogTitle>
                 <DialogContent>
                     <DialogContentText id="delete-dialog-description">
-                        Are you sure you want to permanently delete cable{' '}
-                        <strong>{deleteDialog.cable?.cut_id}</strong>?
+                        Are you sure you want to permanently delete this cable?
                         <br />
                         <br />
                         This action cannot be undone and will remove all associated data.
