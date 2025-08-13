@@ -270,7 +270,8 @@ function RPLTGNIA9() {
 
   // Define polyline path options based on hover state
   const getPathOptions = () => {
-    const baseColor = stats.avgUtilization > 0 ? '#722ED1' : 'red';
+    // Always use yellow for TGN-IA segments
+    const baseColor = '#FFFF00';
 
     if (isHovered) {
       return {

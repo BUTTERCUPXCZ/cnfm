@@ -50,7 +50,7 @@ const COLORS = {
 const CABLE_SYSTEMS_CONFIG = [
     {
         name: 'TGN-IA',
-        color: '#722ED1',
+        color: '#FFFF00', // Changed to yellow
         segments: [
             { name: 'Hong Kong', endpoint: '/tgnia-hongkong' },
             { name: 'Japan', endpoint: '/tgnia-japan' },
@@ -241,7 +241,7 @@ const CapacityCard: React.FC<{
             >
                 CAPACITY:
             </Typography>
-            <Typography variant="h4" sx={{ fontWeight: 700, color: COLORS.primary, mb: 2 }}>
+            <Typography variant="h4" sx={{ fontWeight: 700, color: '#000000', mb: 2 }}>
                 {totalGbps} Gbps
             </Typography>
         </Box>
@@ -259,7 +259,7 @@ const CapacityCard: React.FC<{
             >
                 AVERAGE UTILIZATION:
             </Typography>
-            <Typography variant="h5" sx={{ fontWeight: 600, color: COLORS.primary }}>
+            <Typography variant="h5" sx={{ fontWeight: 600, color: '#000000' }}>
                 {utilization}
             </Typography>
         </Box>
@@ -273,7 +273,7 @@ const SystemCard: React.FC<{
     <Paper onClick={() => onClick(system)} sx={styles.systemCard(system.color)}>
         {/* System Header */}
         <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-            <Typography variant="h6" sx={{ fontWeight: 700, color: system.color }}>
+            <Typography variant="h6" sx={{ fontWeight: 700, color: system.name === 'TGN-IA' ? '#000000' : system.color }}>
                 {system.name}
             </Typography>
             <Chip
@@ -373,7 +373,7 @@ const StatRow: React.FC<{
             variant="body2" 
             sx={{ 
                 fontWeight: 700, 
-                color,
+                color: (label === 'Total Capacity:' || label === 'Average Utilization:') ? '#000000' : color,
                 fontSize: '12px',
                 textAlign: 'right'
             }}
@@ -435,9 +435,10 @@ const SegmentRow: React.FC<{
                     minWidth: '40px',
                     fontWeight: 600,
                     backgroundColor: segment.utilization > 0 ? systemColor : '#e0e0e0',
-                    color: segment.utilization > 0 ? 'white' : '#757575',
+                    color: (systemColor === '#FFFF00' && segment.utilization > 0) ? '#000000' : (segment.utilization > 0 ? 'white' : '#757575'),
                     '& .MuiChip-label': {
-                        px: 1
+                        px: 1,
+                        color: (systemColor === '#FFFF00' && segment.utilization > 0) ? '#000000' : undefined
                     }
                 }}
             />
