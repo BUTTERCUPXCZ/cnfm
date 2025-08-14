@@ -11,6 +11,7 @@ import Header from 'src/components/Header';
 import React, { useCallback, useEffect, useState, useRef } from 'react';
 import UserCableMap from './UserCableMap';
 import L from 'leaflet';
+import CableMap from '../admin/components/CableMap';
 
 // Types
 interface LegendItem {

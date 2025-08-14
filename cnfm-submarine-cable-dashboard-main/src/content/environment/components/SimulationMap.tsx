@@ -113,37 +113,56 @@ function DynamicMarker({ position, label, icon }: DynamicMarkerProps) {
   useEffect(() => {
     if (!position) return;
 
-    map.createPane('markerPane');
-    map.getPane('markerPane')!.style.zIndex = '650';
+    // Ensure map is fully initialized before creating markers
+    const addMarkerWhenReady = () => {
+      try {
+        // Check if map is ready
+        if (!map.getCenter()) {
+          // Map not ready yet, wait a bit and try again
+          setTimeout(addMarkerWhenReady, 100);
+          return;
+        }
 
-    let marker: L.Marker | L.CircleMarker;
+        map.createPane('markerPane');
+        map.getPane('markerPane')!.style.zIndex = '650';
 
-    if (icon) {
-      marker = L.marker(position, { icon, pane: 'markerPane' });
-    } else {
-      marker = L.circleMarker(position, {
-        radius: 4,
-        color: 'gray',
-        fillColor: 'white',
-        fillOpacity: 1,
-        pane: 'markerPane'
-      });
-    }
+        let marker: L.Marker | L.CircleMarker;
 
-    marker.bindTooltip(
-      `<span style="font-size: 14px; font-weight: bold;">${label}</span>`,
-      {
-        direction: 'top',
-        offset: icon ? [0, -30] : [0, -10],
-        permanent: false,
-        opacity: 1
+        if (icon) {
+          marker = L.marker(position, { icon, pane: 'markerPane' });
+        } else {
+          marker = L.circleMarker(position, {
+            radius: 4,
+            color: 'gray',
+            fillColor: 'white',
+            fillOpacity: 1,
+            pane: 'markerPane'
+          });
+        }
+
+        marker.bindTooltip(
+          `<span style="font-size: 14px; font-weight: bold;">${label}</span>`,
+          {
+            direction: 'top',
+            offset: icon ? [0, -30] : [0, -10],
+            permanent: false,
+            opacity: 1
+          }
+        );
+
+        marker.addTo(map);
+        return () => {
+          map.removeLayer(marker);
+        };
+      } catch (error) {
+        console.warn('Error creating dynamic marker:', error);
+        // Retry after a short delay
+        setTimeout(addMarkerWhenReady, 100);
       }
-    );
-
-    marker.addTo(map);
-    return () => {
-      map.removeLayer(marker);
     };
+
+    const cleanup = addMarkerWhenReady();
+    return cleanup;
   }, [position, map, label, icon]);
 
   return null;
@@ -332,7 +351,8 @@ const SimulationMap: React.FC<SimulationMapProps> = ({ selectedCable, mapRef: ex
         ref={externalMapRef || mapRef}
       >
         <RemoveAttribution />
-        <ChangeView center={[18, 134]} zoom={3.5} />
+        <ChangeView center={[20, 140]} zoom={3} />
+     
         {/* Keep tile requests fast & crisp without tripping TS types */}
         <TileLayer
           url={`https://maps.geoapify.com/v1/tile/klokantech-basic/{z}/{x}/{y}.png?apiKey=${mapApiKey}`}
