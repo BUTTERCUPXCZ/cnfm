@@ -387,7 +387,7 @@ const SimulationMap: React.FC<SimulationMapProps> = ({ selectedCable, mapRef: ex
         <RPLTGNIA10 />
         <RPLTGNIA11 />
         <RPLTGNIA12 />
-      
+         <C2C />
         <ReturnButton />
         <CutSeaUS />
         <CutSJC />
