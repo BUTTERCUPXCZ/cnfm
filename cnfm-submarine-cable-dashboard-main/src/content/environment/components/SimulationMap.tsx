@@ -1,30 +1,24 @@
 import { Box, Typography, IconButton, Paper } from '@mui/material';
-import InfoIcon from '@mui/icons-material/Info';
 import { MapContainer, TileLayer, useMap } from 'react-leaflet';
-import type { MapContainerProps } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
-import React, { useEffect, useRef, useState, useMemo } from 'react';
+import React, { useEffect, useRef, useState, lazy, Suspense } from 'react';
 import L from 'leaflet';
-
-import SeaUS from 'src/content/admin/dashboard/SeaUS';
-import SJC from 'src/content/admin/dashboard/SJC';
-import C2C from 'src/content/admin/dashboard/C2C';
-import TGNIA from 'src/content/admin/dashboard/TGNIA';
-
+import MenuIcon from '@mui/icons-material/Menu';
+import InfoIcon from '@mui/icons-material/Info';
+import USAMarker from 'src/content/admin/components/USAMarker';
 import JapanMarker from 'src/content/admin/components/JapanMarker';
+import TGNIA from 'src/content/admin/dashboard/TGNIA';
+import SJC from 'src/content/admin/dashboard/SJC';
 import HongkongMarker from 'src/content/admin/components/HongkongMarker';
 import SingaporeMarker from 'src/content/admin/components/SingaporeMarker';
-import USAMarker from 'src/content/admin/components/USAMarker';
-import HideToolTip from 'src/content/admin/components/HideToolTip';
-
-// Explicit RPL imports (as in your working codebase)
+import C2C from 'src/content/admin/dashboard/C2C';
+import SeaUS from 'src/content/admin/dashboard/SeaUS';
+import ReturnButton from './ReturnButton';
+import CutSeaUS from './RPLSeaUS/CutSeaUS';
 import RPLSeaUS1 from 'src/content/admin/dashboard/RoutePositionList/RPLSeaUS1';
 import RPLSeaUS2 from 'src/content/admin/dashboard/RoutePositionList/RPLSeaUS2';
 import RPLSeaUS3 from 'src/content/admin/dashboard/RoutePositionList/RPLSeaUS3';
-import RPLSeaUS4 from 'src/content/admin/dashboard/RoutePositionList/RPLSeaUS4';
-import RPLSeaUS5 from 'src/content/admin/dashboard/RoutePositionList/RPLSeaUS5';
-import RPLSeaUS6 from 'src/content/admin/dashboard/RoutePositionList/RPLSeaUS6';
-
+import CutSJC from './RPLSJC/CutSJC';
 import RPLSJC1 from 'src/content/admin/dashboard/RoutePositionList/RPLSJC1';
 import RPLSJC3 from 'src/content/admin/dashboard/RoutePositionList/RPLSJC3';
 import RPLSJC4 from 'src/content/admin/dashboard/RoutePositionList/RPLSJC4';
@@ -37,7 +31,7 @@ import RPLSJC10 from 'src/content/admin/dashboard/RoutePositionList/RPLSJC10';
 import RPLSJC11 from 'src/content/admin/dashboard/RoutePositionList/RPLSJC11';
 import RPLSJC12 from 'src/content/admin/dashboard/RoutePositionList/RPLSJC12';
 import RPLSJC13 from 'src/content/admin/dashboard/RoutePositionList/RPLSJC13';
-
+import CutTGNIA from './RPLTGNIA/CutTGNIA';
 import RPLTGNIA1 from 'src/content/admin/dashboard/RoutePositionList/RPLTGNIA1';
 import RPLTGNIA2 from 'src/content/admin/dashboard/RoutePositionList/RPLTGNIA2';
 import RPLTGNIA3 from 'src/content/admin/dashboard/RoutePositionList/RPLTGNIA3';
@@ -50,53 +44,65 @@ import RPLTGNIA9 from 'src/content/admin/dashboard/RoutePositionList/RPLTGNIA9';
 import RPLTGNIA10 from 'src/content/admin/dashboard/RoutePositionList/RPLTGNIA10';
 import RPLTGNIA11 from 'src/content/admin/dashboard/RoutePositionList/RPLTGNIA11';
 import RPLTGNIA12 from 'src/content/admin/dashboard/RoutePositionList/RPLTGNIA12';
-
-import CutSeaUS from './RPLSeaUS/CutSeaUS';
-import CutSJC from './RPLSJC/CutSJC';
-import CutTGNIA from './RPLTGNIA/CutTGNIA';
 import ResetButton from './ResetButton';
-import ReturnButton from './ReturnButton';
+import RPLSeaUS4 from 'src/content/admin/dashboard/RoutePositionList/RPLSeaUS4';
+import RPLSeaUS5 from 'src/content/admin/dashboard/RoutePositionList/RPLSeaUS5';
+import RPLSeaUS6 from 'src/content/admin/dashboard/RoutePositionList/RPLSeaUS6';
 
-// Optional: if you actually use this elsewhere
-// import DeletedCablesSidebar from 'src/content/admin/components/DeletedCablesSidebar';
+// Lazy load the sidebar and tooltip components for better performance
+const DeletedCablesSidebar = lazy(() => import('src/content/admin/components/DeletedCablesSidebar'));
+const HideToolTip = lazy(() => import('src/content/admin/components/HideToolTip'));
 
-const SimulationMapErrorBoundary: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [hasError, setHasError] = useState(false);
-  React.useEffect(() => {
-    const handleError = () => setHasError(true);
-    window.addEventListener('error', handleError);
-    return () => window.removeEventListener('error', handleError);
-  }, []);
-  if (hasError) {
-    return (
-      <Box sx={{ p: 4, textAlign: 'center', bgcolor: '#f5f5f5', borderRadius: 2 }}>
-        <Typography variant="h6" color="error" gutterBottom>
-          Map Loading Error
-        </Typography>
-        <Typography variant="body2" color="textSecondary">
-          There was an error loading the cable map. Please refresh the page or contact support.
-        </Typography>
-        <button
-          onClick={() => window.location.reload()}
-          style={{
-            marginTop: '16px',
-            padding: '8px 16px',
-            backgroundColor: '#1976d2',
-            color: 'white',
-            border: 'none',
-            borderRadius: '4px',
-            cursor: 'pointer'
-          }}
-        >
-          Refresh Page
-        </button>
-      </Box>
-    );
-  }
-  return <>{children}</>;
-};
+// Loading component for better UX during component loading
+const LoadingSpinner: React.FC<{ message?: string }> = ({ message = 'Loading...' }) => (
+  <Box sx={{ 
+    display: 'flex', 
+    alignItems: 'center', 
+    justifyContent: 'center', 
+    p: 2,
+    bgcolor: 'rgba(255, 255, 255, 0.9)',
+    borderRadius: 2,
+    minHeight: '60px'
+  }}>
+    <Box sx={{ 
+      width: '20px', 
+      height: '20px', 
+      border: '2px solid #f3f3f3',
+      borderTop: '2px solid #3854A5',
+      borderRadius: '50%',
+      animation: 'spin 1s linear infinite',
+      mr: 2,
+      '@keyframes spin': {
+        '0%': { transform: 'rotate(0deg)' },
+        '100%': { transform: 'rotate(360deg)' }
+      }
+    }} />
+    <Typography variant="body2">{message}</Typography>
+  </Box>
+);
 
-function ChangeView({ center, zoom }: { center: L.LatLngExpression; zoom: number }) {
+// Define types for better type safety
+interface CableCut {
+  cut_id?: string;
+  latitude: number;
+  longitude: number;
+  distance?: number;
+  depth?: number;
+  fault_date?: string;
+  cut_type?: string;
+  cable_type?: string;
+  simulated?: string;
+  gbps?: number;
+  percent?: number;
+  [key: string]: any; // for other properties
+}
+
+interface SimulationMapProps {
+  selectedCable?: CableCut | null;
+  mapRef?: React.RefObject<L.Map>;
+}
+
+function ChangeView({ center, zoom }) {
   const map = useMap();
   map.setView(center, zoom);
   return null;
@@ -105,159 +111,255 @@ function ChangeView({ center, zoom }: { center: L.LatLngExpression; zoom: number
 type DynamicMarkerProps = {
   position: [number, number];
   label: string;
-  icon?: L.Icon;
+  icon?: L.Icon; // make it optional with the `?`
 };
 
 function DynamicMarker({ position, label, icon }: DynamicMarkerProps) {
   const map = useMap();
+
   useEffect(() => {
-    if (!position) return;
+    if (position) {
+      map.createPane('markerPane');
+      map.getPane('markerPane')!.style.zIndex = '650';
 
-    // Ensure map is fully initialized before creating markers
-    const addMarkerWhenReady = () => {
-      try {
-        // Check if map is ready
-        if (!map.getCenter()) {
-          // Map not ready yet, wait a bit and try again
-          setTimeout(addMarkerWhenReady, 100);
-          return;
-        }
+      let marker: L.Marker | L.CircleMarker;
 
-        map.createPane('markerPane');
-        map.getPane('markerPane')!.style.zIndex = '650';
-
-        let marker: L.Marker | L.CircleMarker;
-
-        if (icon) {
-          marker = L.marker(position, { icon, pane: 'markerPane' });
-        } else {
-          marker = L.circleMarker(position, {
-            radius: 4,
-            color: 'gray',
-            fillColor: 'white',
-            fillOpacity: 1,
-            pane: 'markerPane'
-          });
-        }
-
-        marker.bindTooltip(
-          `<span style="font-size: 14px; font-weight: bold;">${label}</span>`,
-          {
-            direction: 'top',
-            offset: icon ? [0, -30] : [0, -10],
-            permanent: false,
-            opacity: 1
-          }
-        );
-
-        marker.addTo(map);
-        return () => {
-          map.removeLayer(marker);
-        };
-      } catch (error) {
-        console.warn('Error creating dynamic marker:', error);
-        // Retry after a short delay
-        setTimeout(addMarkerWhenReady, 100);
+      if (icon) {
+        marker = L.marker(position, {
+          icon,
+          pane: 'markerPane'
+        });
+      } else {
+        marker = L.circleMarker(position, {
+          radius: 4,
+          color: 'gray',
+          fillColor: 'white',
+          fillOpacity: 1,
+          pane: 'markerPane'
+        });
       }
-    };
 
-    const cleanup = addMarkerWhenReady();
-    return cleanup;
+      marker.bindTooltip(
+        `<span style="font-size: 14px; font-weight: bold;">${label}</span>`,
+        {
+          direction: 'top',
+          offset: icon ? [0, -30] : [0, -10], // 👈 Tooltip offset adjusted here
+          permanent: false,
+          opacity: 1
+        }
+      );
+
+      marker.addTo(map);
+
+      return () => {
+        map.removeLayer(marker);
+      };
+    }
   }, [position, map, label, icon]);
 
   return null;
 }
 
-interface CableCut {
-  cut_id: string;
-  cut_type: string;
-  fault_date: string;
-  distance: number;
-  simulated: string;
-  latitude: number;
-  longitude: number;
-  depth: number;
-}
-
-interface SimulationMapProps {
-  selectedCable?: CableCut | null;
-  mapRef?: React.RefObject<L.Map>;
-}
-
 const SimulationMap: React.FC<SimulationMapProps> = ({ selectedCable, mapRef: externalMapRef }) => {
-  const [mapHeight, setMapHeight] = useState('60vh');
-
-  // Right sidebar
+  const [mapHeight, setMapHeight] = useState('100%'); // Changed to 100% to fill container
+  const [ipopUtilization, setIpopUtilization] = useState('0%');
+  const [ipopDifference, setIpopDifference] = useState('0%');
+  const [stats, setStats] = useState({
+    data: [],
+    totalGbps: 0,
+    avgUtilization: 0,
+    zeroUtilizationCount: 0
+  });
+  const [sidebarOpen, setSidebarOpen] = useState(false);
   const [rightSidebarOpen, setRightSidebarOpen] = useState(false);
-
-  // Map ref
+  const [lastUpdate, setLastUpdate] = useState<string | null>(null);
+  
   const mapRef = useRef<L.Map | null>(null);
-
   const apiBaseUrl = process.env.REACT_APP_API_BASE_URL;
   const port = process.env.REACT_APP_PORT;
   const mapApiKey = process.env.REACT_APP_GEOAPIFY_API_KEY;
 
-  // Resize-driven height
+  // Function to update height dynamically - now uses percentage
+  const updateMapHeight = () => {
+    // Since we're using a container with fixed height, use 100%
+    setMapHeight('100%');
+  };
+
+  // Listen for window resize
   useEffect(() => {
-    const updateMapHeight = () => {
-      const screenWidth = window.innerWidth;
-      const screenHeight = window.innerHeight;
-      if (screenHeight > 900 && screenWidth > 1600) setMapHeight('800px');
-      else if (screenHeight > 700 && screenWidth > 1200) setMapHeight('700px');
-      else if (screenHeight > 900) setMapHeight('70vh');
-      else if (screenHeight > 700) setMapHeight('65vh');
-      else setMapHeight('60vh');
-    };
-    updateMapHeight();
+    updateMapHeight(); // Set initial height
     window.addEventListener('resize', updateMapHeight);
     return () => window.removeEventListener('resize', updateMapHeight);
   }, []);
-
-  // Pan/zoom to selected cable (instant)
   useEffect(() => {
-    if (selectedCable && selectedCable.latitude && selectedCable.longitude) {
-      const map = externalMapRef?.current || mapRef.current;
-      if (map) {
-        map.setView([selectedCable.latitude, selectedCable.longitude], 14, { animate: false });
-      }
-    }
-  }, [selectedCable, externalMapRef]);
+    let interval: NodeJS.Timeout;
 
-  // Remove attribution control
+    const fetchData = async () => {
+      try {
+        const response = await fetch(`${apiBaseUrl}${port}/data-summary`);
+        const result = await response.json();
+
+        if (Array.isArray(result) && result.length > 0) {
+          const totalGbps = result.reduce(
+            (sum, item) => sum + (item.gbps || 0),
+            0
+          );
+
+          const totalUtilization = result.reduce(
+            (sum, item) => sum + (item.percent || 0),
+            0
+          );
+
+          const avgUtilization = parseFloat(
+            (totalUtilization / result.length).toFixed(2)
+          );
+
+          const zeroCount = result.filter((item) => item.percent === 0).length;
+
+          setStats({
+            data: result,
+            totalGbps,
+            avgUtilization,
+            zeroUtilizationCount: zeroCount
+          });
+
+          // ✅ Stop interval after successful fetch
+          clearInterval(interval);
+        } else {
+          console.log('No data received, retrying...');
+        }
+      } catch (err) {
+        console.error('Error fetching data:', err);
+      }
+    };
+
+    // Run immediately on mount
+    fetchData();
+
+    // Set up interval to retry every 2s if no data yet
+    interval = setInterval(fetchData, 2000);
+
+    return () => clearInterval(interval); // Cleanup on unmount
+  }, [apiBaseUrl, port]);
+
+  useEffect(() => {
+    let interval: NodeJS.Timeout;
+    const fetchIpopUtil = async () => {
+      try {
+        const response = await fetch(`${apiBaseUrl}${port}/average-util`, {
+          headers: {
+            'Cache-Control': 'no-cache'
+          }
+        });
+        const data = await response.json();
+
+        if (data?.current?.length) {
+          const currentVal = parseFloat(data.current[0].a_side);
+          setIpopUtilization(`${currentVal}%`);
+
+          if (data?.previous?.length) {
+            const previousVal = parseFloat(data.previous[0].a_side);
+            const diff = currentVal - previousVal;
+            const sign = diff > 0 ? '+' : '';
+            setIpopDifference(`${sign}${diff.toFixed(2)}%`);
+          } else {
+            setIpopDifference('');
+          }
+
+          clearInterval(interval);
+        } else {
+          setIpopUtilization('0%');
+          setIpopDifference('');
+        }
+      } catch (error) {
+        console.error('Error fetching IPOP utilization:', error);
+      }
+    };
+
+    // Run immediately on mount
+    fetchIpopUtil();
+
+    // Set up interval to retry every 2s if no data yet
+    interval = setInterval(fetchIpopUtil, 2000);
+
+    return () => clearInterval(interval); // Cleanup on unmount
+  }, [apiBaseUrl, port]);
+
+  // Custom component to remove attribution
   const RemoveAttribution = () => {
     const map = useMap();
+
     useEffect(() => {
+      // Remove attribution control when component mounts
       map.attributionControl.remove();
     }, [map]);
+
     return null;
   };
 
-  // Heavy static layers memoized to avoid re-render churn
-  const StaticLayers = useMemo(
-    () => (
-      <>
-        {/* Dynamic hoverable dots */}
-        <DynamicMarker position={[1.3678, 125.0788]} label="Kauditan, Indonesia" />
-        <DynamicMarker position={[7.0439, 125.542]} label="Davao, Philippines" />
+  return (
+    <Box sx={{ 
+      position: 'relative', 
+      width: '100%', 
+      height: '100%',
+      borderRadius: '12px', // Add border radius to container
+      overflow: 'hidden' // Ensure child elements respect the border radius
+    }}>
+      {/* Map Container */}
+      <MapContainer 
+        style={{ 
+          height: mapHeight, 
+          width: '100%',
+          borderRadius: '12px' // Add border radius to map
+        }}
+        ref={(map) => {
+          if (map) {
+            mapRef.current = map;
+            if (externalMapRef) {
+              (externalMapRef as any).current = map;
+            }
+          }
+        }}
+      >
+        <RemoveAttribution />
+        <ChangeView center={[18, 134]} zoom={3.5} />
+        {/*<TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />*/}
+        <TileLayer
+          url={`https://maps.geoapify.com/v1/tile/klokantech-basic/{z}/{x}/{y}.png?apiKey=${mapApiKey}`}
+        />
+        
+        {/* Dynamic Hoverable Dot Markers*/}
+        <DynamicMarker
+          position={[1.3678, 125.0788]}
+          label="Kauditan, Indonesia"
+        />
+        <DynamicMarker
+          position={[7.0439, 125.542]}
+          label="Davao, Philippines"
+        />
         <DynamicMarker position={[13.464717, 144.69305]} label="Piti, Guam" />
-        <DynamicMarker position={[21.4671, 201.7798]} label="Makaha, Hawaii, USA" />
-        <DynamicMarker position={[14.0679, 120.6262]} label="Nasugbu, Philippines" />
-        <DynamicMarker position={[18.412883, 121.517283]} label="Ballesteros, Philippines" />
-
-        {/* Country/region markers */}
+        <DynamicMarker
+          position={[21.4671, 201.7798]}
+          label="Makaha, Hawaii, USA"
+        />
         <USAMarker />
+        <DynamicMarker
+          position={[14.0679, 120.6262]}
+          label="Nasugbu, Philippines"
+        />
+        <DynamicMarker
+          position={[18.412883, 121.517283]}
+          label="Ballesteros, Philippines"
+        />
         <JapanMarker />
         <HongkongMarker />
         <SingaporeMarker />
-
-        {/* Route Position Lists */}
         <RPLSeaUS1 />
         <RPLSeaUS2 />
         <RPLSeaUS3 />
         <RPLSeaUS4 />
         <RPLSeaUS5 />
         <RPLSeaUS6 />
-
         <RPLSJC1 />
         <RPLSJC3 />
         <RPLSJC4 />
@@ -270,7 +372,6 @@ const SimulationMap: React.FC<SimulationMapProps> = ({ selectedCable, mapRef: ex
         <RPLSJC11 />
         <RPLSJC12 />
         <RPLSJC13 />
-
         <RPLTGNIA1 />
         <RPLTGNIA2 />
         <RPLTGNIA3 />
@@ -283,82 +384,175 @@ const SimulationMap: React.FC<SimulationMapProps> = ({ selectedCable, mapRef: ex
         <RPLTGNIA10 />
         <RPLTGNIA11 />
         <RPLTGNIA12 />
-
-        {/* Other layers & controls */}
-        <C2C />
+      
         <ReturnButton />
         <CutSeaUS />
         <CutSJC />
         <CutTGNIA />
         <ResetButton />
-      </>
-    ),
-    []
-  );
+      </MapContainer>
 
-  return (
-    <Box
-      sx={{
-        position: 'relative',
-        width: '100%',
-        height: '100%',
-        '& .leaflet-control-zoom': { display: 'none !important' }
-      }}
-    >
-      {/* Right sidebar toggle */}
-      <IconButton
-        sx={{
-          position: 'absolute',
-          top: 16,
-          right: 16,
-          zIndex: 1200,
-          background: '#fff',
-          boxShadow: 2,
-          borderRadius: 1,
-          p: 1,
-          '&:hover': { background: '#e3e8f5' }
-        }}
-        onClick={() => setRightSidebarOpen((open) => !open)}
-        aria-label="Show Info Sidebar"
-      >
-        <InfoIcon sx={{ fontSize: 28, color: '#3854A5' }} />
-      </IconButton>
+        <IconButton
+                 sx={{ position: 'absolute', top: 16, left: 16, zIndex: 1200, background: '#fff', boxShadow: 2 }}
+                 onClick={() => {
+                   if (typeof (React as any).startTransition === 'function') {
+                     (React as any).startTransition(() => {
+                       setSidebarOpen((open) => !open);
+                     });
+                   } else {
+                     setSidebarOpen((open) => !open);
+                   }
+                 }}
+                 aria-label="Show Deleted Cables Sidebar"
+               >
+                 <MenuIcon />
+         </IconButton>
 
-      {rightSidebarOpen && (
-        <Paper
-          elevation={4}
+    
+        {/* Right sidebar toggle button */}
+        <IconButton
+          sx={{ position: 'absolute', top: 16, right: 16, zIndex: 1200, background: '#fff', boxShadow: 2 }}
+          onClick={() => {
+            // Use startTransition if available (React 18+), otherwise fallback
+            if (typeof (React as any).startTransition === 'function') {
+              (React as any).startTransition(() => {
+                setRightSidebarOpen((open) => !open);
+              });
+            } else {
+              setRightSidebarOpen((open) => !open);
+            }
+          }}
+          aria-label="Show Info Sidebar"
+        >
+          <InfoIcon />
+        </IconButton>
+
+        {/* Left Sidebar - Deleted Cables */}
+        {sidebarOpen && (
+          <Paper
+            elevation={4}
+            sx={{
+              position: 'absolute',
+              top: 0,
+              left: 0,
+              height: '100%',
+              width: 360,
+              zIndex: 1100,
+              display: 'flex',
+              flexDirection: 'column',
+              boxShadow: 4,
+              borderRadius: '1px',
+              overflow: 'hidden',
+              background: 'rgba(255, 255, 255, 0.7)',
+              transform: sidebarOpen ? 'translateX(0)' : 'translateX(-100%)',
+              transition: 'transform 0.3s ease-in-out',
+              animation: 'slideInFromLeft 0.3s ease-out',
+              '@keyframes slideInFromLeft': {
+                '0%': {
+                  transform: 'translateX(-100%)',
+                  opacity: 0,
+                },
+                '100%': {
+                  transform: 'translateX(0)',
+                  opacity: 1,
+                },
+              },
+            }}
+          >
+            <DeletedCablesSidebar
+              onSelectCable={(cable) => {
+                // Let DeletedCablesSidebar handle all map positioning internally
+                // Don't interfere with map panning to avoid conflicts
+                // console.log('Cable selected and positioned:', cable);
+              }}
+              lastUpdate={lastUpdate}
+              setLastUpdate={setLastUpdate}
+              isAdmin={true}  // Enable admin functionality
+              isUser={true}   // Enable user functionality 
+              mapRef={externalMapRef || mapRef}
+              onCloseSidebar={() => setSidebarOpen(false)} // Add close function
+            />
+          </Paper>
+        )}
+
+        {/* Right Sidebar - HideToolTip */}
+        {rightSidebarOpen && (
+          <Paper
+            elevation={4}
+            sx={{
+              position: 'absolute',
+              top: 0,
+              right: 0,
+              height: '100%',
+              width: 360,
+              zIndex: 1100,
+              display: 'flex',
+              flexDirection: 'column',
+              boxShadow: 4,
+              borderRadius: '8px',
+              overflow: 'hidden',
+              background: 'rgba(255, 255, 255, 0.9)',
+            }}
+          >
+             
+            <HideToolTip />
+          </Paper>
+        )}
+
+        {/* Capacity and Utilization Display */}
+        <Box
           sx={{
             position: 'absolute',
-            top: 0,
-            right: 0,
-            height: '100%',
-            width: 360,
-            zIndex: 1100,
-            display: 'flex',
-            flexDirection: 'column',
-            boxShadow: 4,
+            top: 10,
+            right: 10,
+            backgroundColor: 'rgba(255, 255, 255, 0.7)',
+            color: 'white',
+            padding: '8px 12px',
             borderRadius: '8px',
-            overflow: 'hidden',
-            background: 'rgba(255, 255, 255, 0.9)'
+            zIndex: 1000,
+            fontSize: '14px',
+            flexDirection: 'row'
           }}
         >
-          <HideToolTip />
-        </Paper>
-      )}
+          <Typography variant="caption" color="gray">
+            Capacity:
+          </Typography>
+          <Typography variant="h4" color="black">
+            {stats.totalGbps} Gbps
+          </Typography>
 
-      <MapContainer
-        style={{ height: '100%', width: '100%', willChange: 'transform' }}
-        ref={externalMapRef || mapRef}
-      >
-        <RemoveAttribution />
-        <ChangeView center={[20, 140]} zoom={3} />
-     
-        {/* Keep tile requests fast & crisp without tripping TS types */}
-        <TileLayer
-          url={`https://maps.geoapify.com/v1/tile/klokantech-basic/{z}/{x}/{y}.png?apiKey=${mapApiKey}`}
-        />
-        {StaticLayers}
-      </MapContainer>
+          <Typography variant="caption" color="gray">
+            Average Utilization:
+          </Typography>
+          <Typography variant="h4" color="black">
+            {ipopUtilization}
+            {/* {parseFloat(ipopDifference) !== 0 && (
+              <Box
+                sx={(theme) => {
+                  const diff = parseFloat(ipopDifference);
+
+                  return {
+                    display: 'inline-block',
+                    padding: '2px 10px',
+                    borderRadius: '999px',
+                    fontWeight: 'bold',
+                    fontSize: '14px',
+                    backgroundColor:
+                      diff < 0
+                        ? theme.colors.error.lighter
+                        : theme.colors.success.lighter,
+                    color:
+                      diff < 0
+                        ? theme.colors.error.main
+                        : theme.colors.success.main
+                  };
+                }}
+              >
+                {ipopDifference}
+              </Box>
+            )} */}
+          </Typography>
+        </Box>
     </Box>
   );
 };
