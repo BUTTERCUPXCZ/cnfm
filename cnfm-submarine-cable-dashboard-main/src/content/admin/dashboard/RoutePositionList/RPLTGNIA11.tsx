@@ -269,7 +269,7 @@ function RPLTGNIA11() {
 
   // Define polyline path options based on hover state
   const getPathOptions = () => {
-    const baseColor = stats.avgUtilization > 0 ? '#722ED1' : 'red';
+     const baseColor = '#FFFF00';
 
     if (isHovered) {
       return {
