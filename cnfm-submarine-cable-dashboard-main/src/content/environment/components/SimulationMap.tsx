@@ -303,7 +303,10 @@ const SimulationMap: React.FC<SimulationMapProps> = ({ selectedCable, mapRef: ex
       width: '100%', 
       height: '100%',
       borderRadius: '12px', // Add border radius to container
-      overflow: 'hidden' // Ensure child elements respect the border radius
+      overflow: 'hidden', // Ensure child elements respect the border radius
+      '& .leaflet-control-zoom': {
+        display: 'none !important'
+      }
     }}>
       {/* Map Container */}
       <MapContainer 
