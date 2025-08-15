@@ -914,14 +914,14 @@ const UserCableMap = React.memo<UserCableMapProps>(({ selectedCable, selectedCut
       </Box>
 
       {/* Right Sidebar Toggle Button */}
-      <Box sx={{ position: 'absolute', top: 16, right: 32, zIndex: 1200 }}>
+  <Box sx={{ position: 'absolute', top: 16, right: 15, zIndex: 1200 }}>
         <Tooltip title="Show Cable System Overview" arrow>
           <IconButton
             sx={{ 
               background: '#fff', 
               boxShadow: 2, 
               borderRadius: 1, 
-              p: 1, 
+               
               '&:hover': { background: '#e3e8f5' } 
             }}
             onClick={() => setRightSidebarOpen((open) => !open)}
