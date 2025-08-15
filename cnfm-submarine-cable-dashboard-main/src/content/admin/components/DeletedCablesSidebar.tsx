@@ -156,14 +156,15 @@ const DeletedCablesSidebar: React.FC<DeletedCablesSidebarProps> = ({
                 await fetchDeletedCables();
                 if (setLastUpdate) setLastUpdate(Date.now().toString());
                 
-                showNotification(`Cable ${cable.cut_id} deleted successfully!`, 'success');
+                // Do not show toaster on successful deletion; log instead
+                console.log(`Cable ${cable.cut_id} deleted successfully`);
             } else {
                 throw new Error(result.message || 'Unknown error');
             }
         } catch (error) {
             const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-            console.error('Error deleting cable:', error);
-            showNotification(`Error deleting cable: ${errorMessage}`, 'error');
+            // Log the error but do not show the toaster when deleting from sidebar
+            console.error('Error deleting cable (silent):', errorMessage);
         } finally {
             setLoading(false);
             setDeleteDialog({ open: false, cable: null });
@@ -814,7 +815,7 @@ const DeletedCablesSidebar: React.FC<DeletedCablesSidebarProps> = ({
                     width: 360,
                     minHeight: '100vh',
                     maxHeight: '100vh',
-                    overflowY: 'auto',
+                    overflow: 'hidden',
                     display: 'flex',
                     flexDirection: 'column',
                     '&::-webkit-scrollbar': { width: '6px' },
@@ -841,104 +842,122 @@ const DeletedCablesSidebar: React.FC<DeletedCablesSidebarProps> = ({
 
                 <Divider sx={{ mb: 1 }} />
 
-                <List
+                <Box
                     sx={{
-                        width: '100%',
-                        maxHeight: '70vh',
-                        overflowY: 'auto',
-                        '&::-webkit-scrollbar': { width: '6px' },
-                        '&::-webkit-scrollbar-thumb': { background: '#ccc', borderRadius: '8px' },
+                        display: 'flex',
+                        flexDirection: 'column',
+                        height: '100%', // Ensure it takes full height of parent
+                        minHeight: 0, // Important for flex scrolling
                     }}
-                >
-                    {loading ? (
-                        <Typography variant="body2" color="text.secondary" sx={{ fontStyle: 'italic', px: 2 }}>
-                            Loading deleted cables...
-                        </Typography>
-                    ) : error ? (
-                        <Typography variant="body2" color="error" sx={{ fontStyle: 'italic', px: 2 }}>
-                            {error}
-                        </Typography>
-                    ) : deletedCables.length === 0 ? (
-                        <Typography variant="body2" color="text.secondary" sx={{ fontStyle: 'italic', px: 2 }}>
-                            No deleted cables yet.
-                        </Typography>
-                    ) : (
-                        [...deletedCables]
-                            .sort((a, b) => {
-                                const dateA = a.fault_date ? new Date(a.fault_date) : new Date(0);
-                                const dateB = b.fault_date ? new Date(b.fault_date) : new Date(0);
-                                return dateB.getTime() - dateA.getTime();
-                            })
-                            .map((cable, idx) => (
-                                <ListItem
-                                    key={idx}
-                                    onClick={(event) => handleCableClick(cable, event)}
-                                    sx={{
-                                        px: 2,
-                                        py: 1.5,
-                                        borderBottom: '1px solid #eee',
-                                        flexDirection: 'column',
-                                        alignItems: 'flex-start',
-                                        transition: 'background 0.2s',
-                                        '&:hover': {
-                                            background: '#f4f8ff',
-                                            cursor: 'pointer',
-                                        },
-                                    }}
-                                >
-                                    <Typography
-                                        variant="subtitle1"
-                                        sx={{ fontWeight: 600, color: '#1a2a4b' }}
+                    >
+                        <List
+                            sx={{
+                                flex: 1,
+                                minHeight: 0,       // Needed in flex layouts
+                                overflowY: 'auto',
+                                pr: 1,
+                                pb: 26,             // Add extra bottom padding to ensure last item is visible
+                                scrollbarWidth: 'thin',
+                                scrollbarColor: '#a6b0cf transparent',
+                                '&::-webkit-scrollbar': {
+                                    width: '8px',
+                                },
+                                '&::-webkit-scrollbar-thumb': {
+                                    background: 'linear-gradient(180deg, #cfd8e3, #a6b0cf)',
+                                    borderRadius: '10px',
+                                },
+                            }}
+                    >
+                        {loading ? (
+                            <Typography variant="body2" color="text.secondary" sx={{ fontStyle: 'italic', px: 2 }}>
+                                Loading deleted cables...
+                            </Typography>
+                        ) : error ? (
+                            <Typography variant="body2" color="error" sx={{ fontStyle: 'italic', px: 2 }}>
+                                {error}
+                            </Typography>
+                        ) : deletedCables.length === 0 ? (
+                            <Typography variant="body2" color="text.secondary" sx={{ fontStyle: 'italic', px: 2 }}>
+                                No deleted cables yet.
+                            </Typography>
+                        ) : (
+                            [...deletedCables]
+                                .sort((a, b) => {
+                                    const dateA = a.fault_date ? new Date(a.fault_date) : new Date(0);
+                                    const dateB = b.fault_date ? new Date(b.fault_date) : new Date(0);
+                                    return dateB.getTime() - dateA.getTime();
+                                })
+                                .map((cable, idx) => (
+                                    <ListItem
+                                        key={idx}
+                                        onClick={(event) => handleCableClick(cable, event)}
+                                        sx={{
+                                            px: 2,
+                                            py: 1.5,
+                                            borderBottom: '1px solid #eee',
+                                            flexDirection: 'column',
+                                            alignItems: 'flex-start',
+                                            transition: 'background 0.2s',
+                                            '&:hover': {
+                                                background: '#f4f8ff',
+                                                cursor: 'pointer',
+                                            },
+                                        }}
                                     >
-                                        {cable.distance ?? 'N/A'} km — {
-                                            (() => {
-                                                if (!cable.cut_id) return 'Unknown';
-                                                const match = cable.cut_id.match(/^([a-zA-Z]+)(\d+)-/);
-                                                let cableName = 'Unknown';
-                                                let cableNumber = '';
-                                                if (match) {
-                                                    const prefix = match[1].toLowerCase();
-                                                    cableNumber = match[2];
-                                                    if (prefix === 'sjc') cableName = 'SJC';
-                                                    else if (prefix === 'tgnia') cableName = 'TGN-IA';
-                                                    else if (prefix === 'seaus') cableName = 'SEA-US';
-                                                }
-                                                return cableName !== 'Unknown' && cableNumber
-                                                    ? `${cableName} Segment ${cableNumber}`
-                                                    : cableName;
-                                            })()
-                                        }
-                                    </Typography>
-                                    <Typography
-                                        variant="body2"
-                                        sx={{ color: '#444', mt: 0.5 }}
-                                    >
-                                        {cable.fault_date
-                                            ? new Date(cable.fault_date).toLocaleDateString('en-GB', {
-                                                day: '2-digit',
-                                                month: 'short',
-                                                year: 'numeric'
-                                            })
-                                            : 'Date Unknown'}
-                                        {' — '}
-                                        Depth: {cable.depth ? `${cable.depth}m` : 'Unknown'}
-                                    </Typography>
-                                    <Typography
-                                        variant="body2"
-                                        sx={{ color: '#444', mt: 0.2 }}
-                                    >
-                                        {cable.cut_type || 'Unknown'}
-                                    </Typography>
-                                    <Typography
-                                        variant="body2"
-                                        sx={{ color: '#444', mt: 0.2 }}
-                                    >
-                                        {cable.cable_type || 'Unknown'}
-                                    </Typography>
-                                </ListItem>
-                            ))
-                    )}
-                </List>
+                                        <Typography
+                                            variant="subtitle1"
+                                            sx={{ fontWeight: 600, color: '#1a2a4b' }}
+                                        >
+                                            {cable.distance ?? 'N/A'} km — {
+                                                (() => {
+                                                    if (!cable.cut_id) return 'Unknown';
+                                                    const match = cable.cut_id.match(/^([a-zA-Z]+)(\d+)-/);
+                                                    let cableName = 'Unknown';
+                                                    let cableNumber = '';
+                                                    if (match) {
+                                                        const prefix = match[1].toLowerCase();
+                                                        cableNumber = match[2];
+                                                        if (prefix === 'sjc') cableName = 'SJC';
+                                                        else if (prefix === 'tgnia') cableName = 'TGN-IA';
+                                                        else if (prefix === 'seaus') cableName = 'SEA-US';
+                                                    }
+                                                    return cableName !== 'Unknown' && cableNumber
+                                                        ? `${cableName} Segment ${cableNumber}`
+                                                        : cableName;
+                                                })()
+                                            }
+                                        </Typography>
+                                        <Typography
+                                            variant="body2"
+                                            sx={{ color: '#444', mt: 0.5 }}
+                                        >
+                                            {cable.fault_date
+                                                ? new Date(cable.fault_date).toLocaleDateString('en-GB', {
+                                                    day: '2-digit',
+                                                    month: 'short',
+                                                    year: 'numeric'
+                                                })
+                                                : 'Date Unknown'}
+                                            {' — '}
+                                            Depth: {cable.depth ? `${cable.depth}m` : 'Unknown'}
+                                        </Typography>
+                                        <Typography
+                                            variant="body2"
+                                            sx={{ color: '#444', mt: 0.2 }}
+                                        >
+                                            {cable.cut_type || 'Unknown'}
+                                        </Typography>
+                                        <Typography
+                                            variant="body2"
+                                            sx={{ color: '#444', mt: 0.2 }}
+                                        >
+                                            {cable.cable_type || 'Unknown'}
+                                        </Typography>
+                                    </ListItem>
+                                ))
+                        )}
+                    </List>
+                </Box>
             </Box>
 
             <Snackbar
