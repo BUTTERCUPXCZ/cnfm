@@ -14,7 +14,7 @@ import JapanMarker from './JapanMarker';
 import HongkongMarker from './HongkongMarker';
 import SingaporeMarker from './SingaporeMarker';
 import USAMarker from './USAMarker';
-import SimulationButton from 'src/content/environment/components/SimulationButton';
+import SimulationButton from '../../environment/components/SimulationButton';
 import DeletedCablesSidebar from './DeletedCablesSidebar';
 import HideToolTip from './HideToolTip';
 import RPLSeaUS1 from '../dashboard/RoutePositionList/RPLSeaUS1';

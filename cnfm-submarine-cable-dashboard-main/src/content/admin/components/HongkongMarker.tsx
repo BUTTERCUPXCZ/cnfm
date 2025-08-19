@@ -104,7 +104,7 @@ const HongkongMarker = () => {
   const handleClose = () => setOpen(false);
 
   useEffect(() => {
-    let interval;
+    let interval: any;
     const fetchHongkongMarkerData = async () => {
       try {
         const res = await fetch(`${apiBaseUrl}${port}/hongkong-marker`);
@@ -134,12 +134,12 @@ const HongkongMarker = () => {
     };
     // Initial fetch
     fetchHongkongMarkerData();
-    // Only set interval if we don't have data yet
-    if (data) {
-      interval = setInterval(fetchHongkongMarkerData, 5000);
-    }
+    // Always set interval to keep data fresh
+    interval = setInterval(fetchHongkongMarkerData, 5000);
 
-    return () => clearInterval(interval);
+    return () => {
+      if (interval) clearInterval(interval);
+    };
   }, [apiBaseUrl, port]); // ✅ Runs only once on mount
 
   const CustomTooltip = ({ active, payload, total }: any) => {

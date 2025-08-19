@@ -18,6 +18,7 @@ import { Formik, Form, Field } from 'formik';
 import * as Yup from 'yup';
 import { Visibility, VisibilityOff } from '@mui/icons-material';
 import { styled } from '@mui/material/styles';
+import { getFormikErrorText } from '../../../utils/formikHelpers';
 import Footer from 'src/components/Footer';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import { useNavigate } from 'react-router-dom';
@@ -244,7 +245,7 @@ function ChangePassword() {
                         />
                         {errors.currentPassword && touched.currentPassword && (
                           <FormHelperText>
-                            {errors.currentPassword}
+                            {getFormikErrorText(errors.currentPassword)}
                           </FormHelperText>
                         )}
                       </FormControl>
@@ -284,7 +285,7 @@ function ChangePassword() {
                           label="New Password"
                         />
                         {errors.newPassword && touched.newPassword && (
-                          <FormHelperText>{errors.newPassword}</FormHelperText>
+                          <FormHelperText>{getFormikErrorText(errors.newPassword)}</FormHelperText>
                         )}
                       </FormControl>
                     </Box>
@@ -326,7 +327,7 @@ function ChangePassword() {
                         />
                         {errors.confirmPassword && touched.confirmPassword && (
                           <FormHelperText>
-                            {errors.confirmPassword}
+                            {getFormikErrorText(errors.confirmPassword)}
                           </FormHelperText>
                         )}
                       </FormControl>

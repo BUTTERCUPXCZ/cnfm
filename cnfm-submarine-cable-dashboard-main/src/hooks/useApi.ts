@@ -24,7 +24,7 @@ interface IpopUtilizationResult {
   difference: string;
 }
 
-interface CableCut {
+export interface CableCut {
   cut_id: string;
   cut_type: string;
   cable_type?: string;
