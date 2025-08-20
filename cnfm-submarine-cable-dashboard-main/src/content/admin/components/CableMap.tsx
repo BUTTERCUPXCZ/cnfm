@@ -49,23 +49,23 @@ import RPLSeaUS5 from '../dashboard/RoutePositionList/RPLSeaUS5';
 import RPLSeaUS6 from '../dashboard/RoutePositionList/RPLSeaUS6';
 
 // Import TanStack Query hooks
-import { 
-  useDataSummary, 
-  useIpopUtilization, 
-  useLastUpdate, 
+import {
+  useDataSummary,
+  useIpopUtilization,
+  useLastUpdate,
   useDeleteCable,
-  usePrefetchData 
+  usePrefetchData
 } from '../../../hooks/useApi';
 
 function ChangeView({ center, zoom }) {
   const map = useMap();
-  
+
   useEffect(() => {
     if (center && zoom) {
       map.setView(center, zoom);
     }
   }, [map, center, zoom]);
-  
+
   return null;
 }
 
@@ -192,16 +192,16 @@ const CableMapErrorBoundary: React.FC<{ children: React.ReactNode }> = ({ childr
         <Typography variant="body2" color="textSecondary">
           There was an error loading the cable map. Please refresh the page or contact support.
         </Typography>
-        <button 
-          onClick={() => window.location.reload()} 
-          style={{ 
-            marginTop: '16px', 
-            padding: '8px 16px', 
-            backgroundColor: '#1976d2', 
-            color: 'white', 
-            border: 'none', 
-            borderRadius: '4px', 
-            cursor: 'pointer' 
+        <button
+          onClick={() => window.location.reload()}
+          style={{
+            marginTop: '16px',
+            padding: '8px 16px',
+            backgroundColor: '#1976d2',
+            color: 'white',
+            border: 'none',
+            borderRadius: '4px',
+            cursor: 'pointer'
           }}
         >
           Refresh Page
@@ -219,7 +219,7 @@ const CableMap: React.FC<CableMapProps> = ({ selectedCable, selectedCutType, map
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [rightSidebarOpen, setRightSidebarOpen] = useState(false);
-  
+
   // Refs for cleanup
   const mapRef = useRef<any>(null);
   const mountedRef = useRef(true);
@@ -303,10 +303,10 @@ const CableMap: React.FC<CableMapProps> = ({ selectedCable, selectedCutType, map
 
     try {
       console.log('Making delete request for cable:', cable.cut_id);
-      
+
       const result = await deleteCableMutation.mutateAsync(cable.cut_id);
       console.log('Delete response:', result);
-      
+
       if (result.success) {
         // Update the lastUpdate to trigger refresh in sidebar if it exists
         const updateFunction = externalSetLastUpdate;
@@ -378,7 +378,7 @@ const CableMap: React.FC<CableMapProps> = ({ selectedCable, selectedCutType, map
   if (statsError && !statsData) {
     console.error('Critical error loading stats:', statsError);
   }
-  
+
   if (ipopError && !ipopData) {
     console.error('Error loading IPOP data:', ipopError);
   }
@@ -406,14 +406,16 @@ const CableMap: React.FC<CableMapProps> = ({ selectedCable, selectedCutType, map
           </Box>
         )}
 
-        {/* Left sidebar toggle button */}
-        <IconButton
-          sx={{ position: 'absolute', top: 16, left: 16, zIndex: 1200, background: '#fff', boxShadow: 2 }}
-          onClick={() => setSidebarOpen((open) => !open)}
-          aria-label="Show Deleted Cables Sidebar"
-        >
-          <MenuIcon />
-        </IconButton>
+        {/* Left sidebar toggle button - moved below zoom controls */}
+        {!sidebarOpen && (
+          <IconButton
+            sx={{ position: 'absolute', top: 78, left: 10, zIndex: 1200, background: '#fff', boxShadow: 2 }}
+            onClick={() => setSidebarOpen((open) => !open)}
+            aria-label="Show Deleted Cables Sidebar"
+          >
+            <MenuIcon />
+          </IconButton>
+        )}
 
         {/* Right sidebar toggle button */}
         <IconButton
@@ -487,17 +489,17 @@ const CableMap: React.FC<CableMapProps> = ({ selectedCable, selectedCutType, map
               top: 0,
               right: 0,
               height: '100%',
-              width: 360,
+              width: 320,
               zIndex: 1100,
               display: 'flex',
               flexDirection: 'column',
               boxShadow: 4,
-              borderRadius: '8px',
+              borderRadius: '4px',
               overflow: 'hidden',
               background: 'rgba(255, 255, 255, 0.9)',
             }}
           >
-             
+
             <HideToolTip />
           </Paper>
         )}
@@ -560,157 +562,154 @@ const CableMap: React.FC<CableMapProps> = ({ selectedCable, selectedCutType, map
         <Box
           sx={{
             height: '100%',
-            width: '100%',
-            '& .leaflet-control-zoom': {
-              display: 'none !important'
-            }
+            width: '100%'
           }}
         >
-          <MapContainer 
-            style={{ height: '100%', width: '100%' }} 
+          <MapContainer
+            style={{ height: '100%', width: '100%' }}
             ref={externalMapRef || mapRef}
           >
-          <RemoveAttribution />
-          <ChangeView center={[18, 134]} zoom={4} />
-          <TileLayer
-            url={`https://maps.geoapify.com/v1/tile/klokantech-basic/{z}/{x}/{y}.png?apiKey=${apiConfig.mapApiKey}`}
-          />
+            <RemoveAttribution />
+            <ChangeView center={[18, 134]} zoom={4} />
+            <TileLayer
+              url={`https://maps.geoapify.com/v1/tile/klokantech-basic/{z}/{x}/{y}.png?apiKey=${apiConfig.mapApiKey}`}
+            />
 
-          {/* Static markers - memoized to prevent recreation */}
-          <DynamicMarker position={[1.3678, 125.0788]} label="Kauditan, Indonesia" />
-          <DynamicMarker position={[7.0439, 125.542]} label="Davao, Philippines" />
-          <DynamicMarker position={[13.464717, 144.69305]} label="Piti, Guam" />
-          <DynamicMarker position={[21.4671, 201.7798]} label="Makaha, Hawaii, USA" />
-          <DynamicMarker position={[14.0679, 120.6262]} label="Nasugbu, Philippines" />
-          <DynamicMarker position={[18.412883, 121.517283]} label="Ballesteros, Philippines" />
+            {/* Static markers - memoized to prevent recreation */}
+            <DynamicMarker position={[1.3678, 125.0788]} label="Kauditan, Indonesia" />
+            <DynamicMarker position={[7.0439, 125.542]} label="Davao, Philippines" />
+            <DynamicMarker position={[13.464717, 144.69305]} label="Piti, Guam" />
+            <DynamicMarker position={[21.4671, 201.7798]} label="Makaha, Hawaii, USA" />
+            <DynamicMarker position={[14.0679, 120.6262]} label="Nasugbu, Philippines" />
+            <DynamicMarker position={[18.412883, 121.517283]} label="Ballesteros, Philippines" />
 
-          {/* Country markers */}
-          <USAMarker />
-          <JapanMarker />
-          <HongkongMarker />
-          <SingaporeMarker />
+            {/* Country markers */}
+            <USAMarker />
+            <JapanMarker />
+            <HongkongMarker />
+            <SingaporeMarker />
 
-          {/* Route position lists */}
-          <RPLSeaUS1 />
-          <RPLSeaUS2 />
-          <RPLSeaUS3 />
-          <RPLSeaUS4 />
-          <RPLSeaUS5 />
-          <RPLSeaUS6 />
-          <RPLSJC1 />
-          <RPLSJC3 />
-          <RPLSJC4 />
-          <RPLSJC5 />
-          <RPLSJC6 />
-          <RPLSJC7 />
-          <RPLSJC8 />
-          <RPLSJC9 />
-          <RPLSJC10 />
-          <RPLSJC11 />
-          <RPLSJC12 />
-          <RPLSJC13 />
-          <RPLTGNIA1 />
-          <RPLTGNIA2 />
-          <RPLTGNIA3 />
-          <RPLTGNIA4 />
-          <RPLTGNIA5 />
-          <RPLTGNIA6 />
-          <RPLTGNIA7 />
-          <RPLTGNIA8 />
-          <RPLTGNIA9 />
-          <RPLTGNIA10 />
-          <RPLTGNIA11 />
-          <RPLTGNIA12 />
-          <C2C />
-          <SimulationButton />
+            {/* Route position lists */}
+            <RPLSeaUS1 />
+            <RPLSeaUS2 />
+            <RPLSeaUS3 />
+            <RPLSeaUS4 />
+            <RPLSeaUS5 />
+            <RPLSeaUS6 />
+            <RPLSJC1 />
+            <RPLSJC3 />
+            <RPLSJC4 />
+            <RPLSJC5 />
+            <RPLSJC6 />
+            <RPLSJC7 />
+            <RPLSJC8 />
+            <RPLSJC9 />
+            <RPLSJC10 />
+            <RPLSJC11 />
+            <RPLSJC12 />
+            <RPLSJC13 />
+            <RPLTGNIA1 />
+            <RPLTGNIA2 />
+            <RPLTGNIA3 />
+            <RPLTGNIA4 />
+            <RPLTGNIA5 />
+            <RPLTGNIA6 />
+            <RPLTGNIA7 />
+            <RPLTGNIA8 />
+            <RPLTGNIA9 />
+            <RPLTGNIA10 />
+            <RPLTGNIA11 />
+            <RPLTGNIA12 />
+            <C2C />
+            <SimulationButton />
 
-          {selectedCable && selectedCutType && (
-            <Marker
-              key={`cable-${selectedCable.cut_id || `${selectedCable.latitude}-${selectedCable.longitude}`}`}
-              position={[selectedCable.latitude, selectedCable.longitude]}
-            >
-              <Popup key={`popup-${selectedCable.cut_id || `${selectedCable.latitude}-${selectedCable.longitude}`}`}>
-                <Box sx={{ minWidth: 270, p: 1 }}>
-                  <Box sx={{ background: '#B71C1C', color: 'white', p: 1, borderRadius: 1, mb: 1, textAlign: 'center' }}>
-                    <Typography variant="h6">{selectedCutType.toUpperCase()}</Typography>
-                  </Box>
-                  <Typography sx={{ fontWeight: 700, fontSize: '18px', mb: 1 }}>
-                    {selectedCable.distance} km — {selectedCable.cut_id}
-                  </Typography>
-                  <Typography sx={{ mb: 1 }}>
-                    {formatDate(selectedCable.fault_date)} — Depth: {selectedCable.depth}m
-                  </Typography>
-                  <Typography sx={{ mb: 1 }}>Cut Type: {selectedCutType}</Typography>
-                  <Typography sx={{ mb: 1 }}>Cable Type: {selectedCable.cable_type || 'Unknown'}</Typography>
-                  <Typography sx={{ mb: 1 }}>Latitude: {selectedCable.latitude}</Typography>
-                  <Typography sx={{ mb: 1 }}>Longitude: {selectedCable.longitude}</Typography>
-                  <Box sx={{ mt: 2, display: 'flex', flexDirection: 'column', gap: 1 }}>
-                    <button 
-                      onClick={async (e) => {
-                        e.preventDefault();
-                        e.stopPropagation();
-                        console.log('Delete button clicked for cable:', selectedCable.cut_id);
-                        
-                        // Confirm deletion before proceeding
-                        if (window.confirm(`Are you sure you want to delete cable ${selectedCable.cut_id}?`)) {
-                          try {
-                            await handleDeleteCable(selectedCable);
-                          } catch (error) {
-                            console.error('Error in delete button click:', error);
+            {selectedCable && selectedCutType && (
+              <Marker
+                key={`cable-${selectedCable.cut_id || `${selectedCable.latitude}-${selectedCable.longitude}`}`}
+                position={[selectedCable.latitude, selectedCable.longitude]}
+              >
+                <Popup key={`popup-${selectedCable.cut_id || `${selectedCable.latitude}-${selectedCable.longitude}`}`}>
+                  <Box sx={{ minWidth: 270, p: 1 }}>
+                    <Box sx={{ background: '#B71C1C', color: 'white', p: 1, borderRadius: 1, mb: 1, textAlign: 'center' }}>
+                      <Typography variant="h6">{selectedCutType.toUpperCase()}</Typography>
+                    </Box>
+                    <Typography sx={{ fontWeight: 700, fontSize: '18px', mb: 1 }}>
+                      {selectedCable.distance} km — {selectedCable.cut_id}
+                    </Typography>
+                    <Typography sx={{ mb: 1 }}>
+                      {formatDate(selectedCable.fault_date)} — Depth: {selectedCable.depth}m
+                    </Typography>
+                    <Typography sx={{ mb: 1 }}>Cut Type: {selectedCutType}</Typography>
+                    <Typography sx={{ mb: 1 }}>Cable Type: {selectedCable.cable_type || 'Unknown'}</Typography>
+                    <Typography sx={{ mb: 1 }}>Latitude: {selectedCable.latitude}</Typography>
+                    <Typography sx={{ mb: 1 }}>Longitude: {selectedCable.longitude}</Typography>
+                    <Box sx={{ mt: 2, display: 'flex', flexDirection: 'column', gap: 1 }}>
+                      <button
+                        onClick={async (e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          console.log('Delete button clicked for cable:', selectedCable.cut_id);
+
+                          // Confirm deletion before proceeding
+                          if (window.confirm(`Are you sure you want to delete cable ${selectedCable.cut_id}?`)) {
+                            try {
+                              await handleDeleteCable(selectedCable);
+                            } catch (error) {
+                              console.error('Error in delete button click:', error);
+                            }
                           }
-                        }
-                      }}
-                      style={{ 
-                        backgroundColor: '#dc3545', 
-                        color: 'white', 
-                        border: 'none', 
-                        padding: '8px 12px', 
-                        borderRadius: '4px', 
-                        cursor: 'pointer', 
-                        fontSize: '14px', 
-                        fontWeight: 'bold', 
-                        width: '100%',
-                        transition: 'background-color 0.2s'
-                      }}
-                      onMouseOver={(e) => e.currentTarget.style.backgroundColor = '#c82333'}
-                      onMouseOut={(e) => e.currentTarget.style.backgroundColor = '#dc3545'}
-                    >
-                      Delete
-                    </button>
-                 <button 
-                      onClick={(e) => {
-                        e.preventDefault();
-                        e.stopPropagation();
-                        console.log('Close button clicked');
-                        
-                        // Close the popup using the callback function
-                        if (onCloseCablePopup) {
-                          onCloseCablePopup();
-                        }
-                      }}
-                      style={{ 
-                        backgroundColor: '#6c757d', 
-                        color: 'white', 
-                        border: 'none', 
-                        padding: '8px 12px', 
-                        borderRadius: '4px', 
-                        cursor: 'pointer', 
-                        fontSize: '14px', 
-                        fontWeight: 'bold', 
-                        width: '100%',
-                        transition: 'background-color 0.2s'
-                      }}
-                      onMouseOver={(e) => e.currentTarget.style.backgroundColor = '#5a6268'}
-                      onMouseOut={(e) => e.currentTarget.style.backgroundColor = '#6c757d'}
-                    >
-                      Close
-                    </button>
+                        }}
+                        style={{
+                          backgroundColor: '#dc3545',
+                          color: 'white',
+                          border: 'none',
+                          padding: '8px 12px',
+                          borderRadius: '4px',
+                          cursor: 'pointer',
+                          fontSize: '14px',
+                          fontWeight: 'bold',
+                          width: '100%',
+                          transition: 'background-color 0.2s'
+                        }}
+                        onMouseOver={(e) => e.currentTarget.style.backgroundColor = '#c82333'}
+                        onMouseOut={(e) => e.currentTarget.style.backgroundColor = '#dc3545'}
+                      >
+                        Delete
+                      </button>
+                      <button
+                        onClick={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          console.log('Close button clicked');
+
+                          // Close the popup using the callback function
+                          if (onCloseCablePopup) {
+                            onCloseCablePopup();
+                          }
+                        }}
+                        style={{
+                          backgroundColor: '#6c757d',
+                          color: 'white',
+                          border: 'none',
+                          padding: '8px 12px',
+                          borderRadius: '4px',
+                          cursor: 'pointer',
+                          fontSize: '14px',
+                          fontWeight: 'bold',
+                          width: '100%',
+                          transition: 'background-color 0.2s'
+                        }}
+                        onMouseOver={(e) => e.currentTarget.style.backgroundColor = '#5a6268'}
+                        onMouseOut={(e) => e.currentTarget.style.backgroundColor = '#6c757d'}
+                      >
+                        Close
+                      </button>
+                    </Box>
                   </Box>
-                </Box>
-              </Popup>
-            </Marker>
-          )}
-        </MapContainer>
+                </Popup>
+              </Marker>
+            )}
+          </MapContainer>
         </Box>
       </Box>
     </CableMapErrorBoundary>

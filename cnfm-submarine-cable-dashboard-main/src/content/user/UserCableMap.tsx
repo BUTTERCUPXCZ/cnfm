@@ -26,7 +26,7 @@ const SeaUSRoutes = lazy(() => Promise.all([
   import('../admin/dashboard/RoutePositionList/RPLSeaUS4'),
   import('../admin/dashboard/RoutePositionList/RPLSeaUS5'),
   import('../admin/dashboard/RoutePositionList/RPLSeaUS6'),
-]).then(modules => ({ 
+]).then(modules => ({
   default: () => (
     <>
       {modules.map((Module, index) => <Module.default key={`seaus-${index}`} />)}
@@ -47,7 +47,7 @@ const SJCRoutes = lazy(() => Promise.all([
   import('../admin/dashboard/RoutePositionList/RPLSJC11'),
   import('../admin/dashboard/RoutePositionList/RPLSJC12'),
   import('../admin/dashboard/RoutePositionList/RPLSJC13'),
-]).then(modules => ({ 
+]).then(modules => ({
   default: () => (
     <>
       {modules.map((Module, index) => <Module.default key={`sjc-${index}`} />)}
@@ -68,7 +68,7 @@ const TGNIARoutes = lazy(() => Promise.all([
   import('../admin/dashboard/RoutePositionList/RPLTGNIA10'),
   import('../admin/dashboard/RoutePositionList/RPLTGNIA11'),
   import('../admin/dashboard/RoutePositionList/RPLTGNIA12'),
-]).then(modules => ({ 
+]).then(modules => ({
   default: () => (
     <>
       {modules.map((Module, index) => <Module.default key={`tgnia-${index}`} />)}
@@ -80,18 +80,18 @@ const C2C = lazy(() => import('../admin/dashboard/C2C'));
 
 // Loading component for better UX during component loading
 const LoadingSpinner: React.FC<{ message?: string }> = ({ message = 'Loading...' }) => (
-  <Box sx={{ 
-    display: 'flex', 
-    alignItems: 'center', 
-    justifyContent: 'center', 
+  <Box sx={{
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
     p: 2,
     bgcolor: 'rgba(255, 255, 255, 0.9)',
     borderRadius: 2,
     minHeight: '60px'
   }}>
-    <Box sx={{ 
-      width: '20px', 
-      height: '20px', 
+    <Box sx={{
+      width: '20px',
+      height: '20px',
       border: '2px solid #f3f3f3',
       borderTop: '2px solid #3854A5',
       borderRadius: '50%',
@@ -131,7 +131,7 @@ type ChangeViewProps = {
 const ChangeView = React.memo<ChangeViewProps>(({ center, zoom }) => {
   const map = useMap();
   const hasInitializedRef = useRef(false);
-  
+
   useEffect(() => {
     // Only set the view once on initial load, don't override user interactions
     // This prevents the zoom-out bug when users manually zoom in and move the map
@@ -140,7 +140,7 @@ const ChangeView = React.memo<ChangeViewProps>(({ center, zoom }) => {
       hasInitializedRef.current = true;
     }
   }, [map, center, zoom]);
-  
+
   return null;
 });
 
@@ -249,16 +249,16 @@ const UserCableMapErrorBoundary = React.memo<{ children: React.ReactNode }>(({ c
         <Typography variant="body2" color="textSecondary">
           There was an error loading the cable map. Please refresh the page or contact support.
         </Typography>
-        <button 
-          onClick={() => window.location.reload()} 
-          style={{ 
-            marginTop: '16px', 
-            padding: '8px 16px', 
-            backgroundColor: '#1976d2', 
-            color: 'white', 
-            border: 'none', 
-            borderRadius: '4px', 
-            cursor: 'pointer' 
+        <button
+          onClick={() => window.location.reload()}
+          style={{
+            marginTop: '16px',
+            padding: '8px 16px',
+            backgroundColor: '#1976d2',
+            color: 'white',
+            border: 'none',
+            borderRadius: '4px',
+            cursor: 'pointer'
           }}
         >
           Refresh Page
@@ -297,7 +297,7 @@ const UserCableMap = React.memo<UserCableMapProps>(({ selectedCable, selectedCut
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [rightSidebarOpen, setRightSidebarOpen] = useState(false);
   const [lastUpdate, setLastUpdate] = useState<string | null>(null);
-  
+
   // Enhanced notification system for deleted cable information
   const [notification, setNotification] = useState(() => ({
     open: false,
@@ -343,23 +343,23 @@ const UserCableMap = React.memo<UserCableMapProps>(({ selectedCable, selectedCut
   // Cable selection now handled entirely by DeletedCablesSidebar - custom popup removed
   const handleCableSelection = useCallback((cable: CableData) => {
     if (!cable || !cable.latitude || !cable.longitude) return;
-    
+
     // Use external mapRef if provided, otherwise use internal mapRef
     const map = externalMapRef?.current || mapRef.current;
     if (!map) return;
-    
+
     // Stop any ongoing animations before starting new one
     map.stop();
-    
+
     // Cable selection is now handled by DeletedCablesSidebar
     // No custom popup state management needed
-    
+
     // Calculate distance-based animation timing for optimal UX
     const currentCenter = map.getCenter();
     const targetLat = parseFloat(parseFloat(cable.latitude.toString()).toFixed(6));
     const targetLng = parseFloat(parseFloat(cable.longitude.toString()).toFixed(6));
     const distance = currentCenter.distanceTo(L.latLng(targetLat, targetLng));
-    
+
     // Determine optimal animation duration based on distance
     let animationDuration: number;
     if (distance > 2000000) animationDuration = 1.2; // Very long distance
@@ -367,22 +367,22 @@ const UserCableMap = React.memo<UserCableMapProps>(({ selectedCable, selectedCut
     else if (distance > 100000) animationDuration = 0.7; // Medium distance
     else if (distance > 10000) animationDuration = 0.5; // Short distance
     else animationDuration = 0.3; // Very short distance
-    
+
     // Apply immediate smooth transition with offset positioning
     const mapContainer = map.getContainer();
     const mapHeight = mapContainer.clientHeight;
-    
+
     // Calculate offset to position marker slightly below center of viewport
     const targetPoint = map.project([cable.latitude, cable.longitude], 14);
-    
+
     // Reduced offset for more centered positioning  
     const offsetY = mapHeight * 0.10; // Further reduced for better centering
     const adjustedPoint = L.point(targetPoint.x, targetPoint.y - offsetY);
-    
+
     // Convert back to lat/lng
     const adjustedCenter = map.unproject(adjustedPoint, 14);
-    
-    map.setView([adjustedCenter.lat, adjustedCenter.lng], 14, { 
+
+    map.setView([adjustedCenter.lat, adjustedCenter.lng], 14, {
       animate: true,
       duration: animationDuration, // Dynamic duration based on distance
       easeLinearity: 0.1 // Faster, smoother easing
@@ -400,21 +400,21 @@ const UserCableMap = React.memo<UserCableMapProps>(({ selectedCable, selectedCut
       console.log('Making delete request for cable:', cable.cut_id);
       const response = await fetch(
         `${apiConfig.apiBaseUrl}${apiConfig.port}/delete-single-cable-cuts/${cable.cut_id}`,
-        { 
+        {
           method: 'DELETE',
           headers: {
             'Content-Type': 'application/json'
           }
         }
       );
-      
+
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
       }
-      
+
       const result = await response.json();
       console.log('Delete response:', result);
-      
+
       if (result.success) {
         // Update the lastUpdate to trigger refresh in sidebar if it exists
         setLastUpdate(Date.now().toString());
@@ -449,10 +449,10 @@ const UserCableMap = React.memo<UserCableMapProps>(({ selectedCable, selectedCut
   // Simplified initial notifications - reduced for better performance
   useEffect(() => {
     let timer: NodeJS.Timeout;
-    
+
     timer = setTimeout(() => {
       showNotification(
-        '🌟 Enhanced User Cable Map: Click sidebar (☰) to navigate to deleted cables with smooth camera movement!', 
+        '🌟 Enhanced User Cable Map: Click sidebar (☰) to navigate to deleted cables with smooth camera movement!',
         'info'
       );
     }, 3000); // Reduced to single notification after 3 seconds
@@ -473,11 +473,11 @@ const UserCableMap = React.memo<UserCableMapProps>(({ selectedCable, selectedCut
           'Content-Type': 'application/json'
         }
       });
-      
+
       if (!response.ok) throw new Error('Failed to fetch data summary');
-      
+
       const result = await response.json();
-      
+
       if (!mountedRef.current) return false;
 
       if (Array.isArray(result) && result.length > 0) {
@@ -486,7 +486,7 @@ const UserCableMap = React.memo<UserCableMapProps>(({ selectedCable, selectedCut
         const totalUtilization = result.reduce((sum, item) => sum + (item.percent || 0), 0);
         const avgUtilization = parseFloat((totalUtilization / result.length).toFixed(2));
         const zeroCount = result.filter((item) => item.percent === 0).length;
-        
+
         // Single state update instead of multiple
         setStats(prevStats => ({
           ...prevStats,
@@ -510,25 +510,25 @@ const UserCableMap = React.memo<UserCableMapProps>(({ selectedCable, selectedCut
   // Optimized IPOP utilization fetching with caching
   const fetchIpopUtilization = useCallback(async (abortController?: AbortController) => {
     try {
-      const response = await fetch(`${apiConfig.apiBaseUrl}${apiConfig.port}/average-util`, { 
-        headers: { 
+      const response = await fetch(`${apiConfig.apiBaseUrl}${apiConfig.port}/average-util`, {
+        headers: {
           'Cache-Control': 'max-age=30', // Cache for 30 seconds
           'Content-Type': 'application/json'
         },
         signal: abortController?.signal
       });
-      
+
       if (!response.ok) throw new Error('Failed to fetch IPOP utilization');
-      
+
       const data = await response.json();
-      
+
       if (!mountedRef.current) return false;
 
       if (data?.current?.length) {
         const currentVal = parseFloat(data.current[0].a_side);
         // Batch state updates
         setIpopUtilization(`${currentVal}%`);
-        
+
         if (data?.previous?.length) {
           const previousVal = parseFloat(data.previous[0].a_side);
           const diff = currentVal - previousVal;
@@ -553,7 +553,7 @@ const UserCableMap = React.memo<UserCableMapProps>(({ selectedCable, selectedCut
   // Map height update with debounced resize handler
   useEffect(() => {
     let timeoutId: NodeJS.Timeout;
-    
+
     const debouncedUpdateMapHeight = () => {
       clearTimeout(timeoutId);
       timeoutId = setTimeout(updateMapHeight, 100);
@@ -561,7 +561,7 @@ const UserCableMap = React.memo<UserCableMapProps>(({ selectedCable, selectedCut
 
     updateMapHeight(); // Initial call
     window.addEventListener('resize', debouncedUpdateMapHeight);
-    
+
     return () => {
       window.removeEventListener('resize', debouncedUpdateMapHeight);
       clearTimeout(timeoutId);
@@ -572,10 +572,10 @@ const UserCableMap = React.memo<UserCableMapProps>(({ selectedCable, selectedCut
   useEffect(() => {
     let retryCount = 0;
     const maxRetries = 3; // Reduced retries
-    
+
     const startDataFetching = async () => {
       const abortController = new AbortController();
-      
+
       const fetchData = async () => {
         const success = await fetchDataSummary(abortController);
         if (success) {
@@ -592,7 +592,7 @@ const UserCableMap = React.memo<UserCableMapProps>(({ selectedCable, selectedCut
 
       // Initial fetch
       await fetchData();
-      
+
       // Set up interval only if we haven't succeeded yet - increased interval for better performance
       if (retryCount > 0 && retryCount < maxRetries) {
         dataFetchIntervalRef.current = setInterval(fetchData, 5000); // Increased to 5 seconds
@@ -602,7 +602,7 @@ const UserCableMap = React.memo<UserCableMapProps>(({ selectedCable, selectedCut
     };
 
     const abortController = startDataFetching();
-    
+
     return () => {
       if (dataFetchIntervalRef.current) {
         clearInterval(dataFetchIntervalRef.current);
@@ -616,10 +616,10 @@ const UserCableMap = React.memo<UserCableMapProps>(({ selectedCable, selectedCut
   useEffect(() => {
     let retryCount = 0;
     const maxRetries = 3; // Reduced retries
-    
+
     const startIpopFetching = async () => {
       const abortController = new AbortController();
-      
+
       const fetchIpop = async () => {
         const success = await fetchIpopUtilization(abortController);
         if (success) {
@@ -635,7 +635,7 @@ const UserCableMap = React.memo<UserCableMapProps>(({ selectedCable, selectedCut
       };
 
       await fetchIpop();
-      
+
       // Increased interval for better performance
       if (retryCount > 0 && retryCount < maxRetries) {
         ipopFetchIntervalRef.current = setInterval(fetchIpop, 5000); // Increased to 5 seconds
@@ -645,7 +645,7 @@ const UserCableMap = React.memo<UserCableMapProps>(({ selectedCable, selectedCut
     };
 
     const abortController = startIpopFetching();
-    
+
     return () => {
       if (ipopFetchIntervalRef.current) {
         clearInterval(ipopFetchIntervalRef.current);
@@ -678,7 +678,7 @@ const UserCableMap = React.memo<UserCableMapProps>(({ selectedCable, selectedCut
     const targetLat = parseFloat(parseFloat(cable.latitude.toString()).toFixed(6));
     const targetLng = parseFloat(parseFloat(cable.longitude.toString()).toFixed(6));
     const targetPosition: [number, number] = [targetLat, targetLng];
-    
+
     if (targetLat < -90 || targetLat > 90 || targetLng < -180 || targetLng > 180) {
       console.error('Invalid coordinates for smooth movement:', { targetLat, targetLng });
       return;
@@ -687,15 +687,15 @@ const UserCableMap = React.memo<UserCableMapProps>(({ selectedCable, selectedCut
     const currentCenter = map.getCenter();
     const currentZoom = map.getZoom();
     const targetZoom = 13; // Much closer initial zoom for excellent cable visibility
-    
+
     const distance = currentCenter.distanceTo(L.latLng(targetLat, targetLng));
-    
+
     map.stop();
-    
+
     let animationDuration: number;
     let intermediateZoom: number;
     let useMultiStageAnimation = false;
-    
+
     if (distance > 2000000) {
       animationDuration = 3.5; // Slower, more cinematic
       intermediateZoom = Math.min(currentZoom, 3); // Zoom out more for dramatic effect
@@ -719,7 +719,7 @@ const UserCableMap = React.memo<UserCableMapProps>(({ selectedCable, selectedCut
     const mapContainer = map.getContainer();
     const mapHeight = mapContainer.clientHeight;
     const offsetY = mapHeight * 0.12;
-    
+
     const targetPoint = map.project(targetPosition, targetZoom);
     const adjustedPoint = L.point(targetPoint.x, targetPoint.y - offsetY);
     const finalCenter = map.unproject(adjustedPoint, targetZoom);
@@ -727,17 +727,17 @@ const UserCableMap = React.memo<UserCableMapProps>(({ selectedCable, selectedCut
     if (useMultiStageAnimation) {
       // Multi-stage cinematic animation for very long distances
       console.log('Starting cinematic multi-stage camera movement');
-      
+
       const intermediateLat = (currentCenter.lat + targetLat) / 2;
       const intermediateLng = (currentCenter.lng + targetLng) / 2;
-      
+
       // Stage 1: Smooth zoom out and move to intermediate position
       map.setView([intermediateLat, intermediateLng], intermediateZoom, {
         animate: true,
         duration: animationDuration * 0.35, // Slightly longer for smooth start
         easeLinearity: 0.02 // Very smooth easing for cinematic effect
       });
-      
+
       // Stage 2: Move closer to target area with smooth transition
       setTimeout(() => {
         map.setView(targetPosition, intermediateZoom + 3, {
@@ -746,7 +746,7 @@ const UserCableMap = React.memo<UserCableMapProps>(({ selectedCable, selectedCut
           easeLinearity: 0.05 // Smooth middle transition
         });
       }, animationDuration * 350);
-      
+
       // Stage 3: Final cinematic zoom in to target with precise positioning
       setTimeout(() => {
         map.setView([finalCenter.lat, finalCenter.lng], targetZoom, {
@@ -755,11 +755,11 @@ const UserCableMap = React.memo<UserCableMapProps>(({ selectedCable, selectedCut
           easeLinearity: 0.1 // Gentle final approach
         });
       }, animationDuration * 750);
-      
+
     } else {
       // Enhanced single-stage smooth animation for shorter distances
       console.log('Starting single-stage smooth camera movement');
-      
+
       if (currentZoom > intermediateZoom + 3) {
         // Two-phase animation: zoom out then move and zoom in
         map.setView(currentCenter, intermediateZoom, {
@@ -767,7 +767,7 @@ const UserCableMap = React.memo<UserCableMapProps>(({ selectedCable, selectedCut
           duration: animationDuration * 0.3,
           easeLinearity: 0.02 // Very smooth zoom out
         });
-        
+
         setTimeout(() => {
           map.setView([finalCenter.lat, finalCenter.lng], targetZoom, {
             animate: true,
@@ -775,7 +775,7 @@ const UserCableMap = React.memo<UserCableMapProps>(({ selectedCable, selectedCut
             easeLinearity: 0.08 // Smooth approach to target
           });
         }, animationDuration * 300);
-        
+
       } else {
         // Single smooth movement to target
         map.setView([finalCenter.lat, finalCenter.lng], targetZoom, {
@@ -785,7 +785,7 @@ const UserCableMap = React.memo<UserCableMapProps>(({ selectedCable, selectedCut
         });
       }
     }
-    
+
     // Verify final position after cinematic animation completes
     setTimeout(() => {
       const finalActualCenter = map.getCenter();
@@ -798,16 +798,16 @@ const UserCableMap = React.memo<UserCableMapProps>(({ selectedCable, selectedCut
         targetZoom,
         actualZoom: finalActualZoom
       });
-      
+
       // Fine-tune position if needed (without animation for final precision)
       const finalDistance = finalActualCenter.distanceTo(L.latLng(finalCenter.lat, finalCenter.lng));
       if (finalDistance > 100) {
         console.log('Fine-tuning final camera position for cable:', cable.cut_id);
-        map.setView([finalCenter.lat, finalCenter.lng], targetZoom, { 
+        map.setView([finalCenter.lat, finalCenter.lng], targetZoom, {
           animate: false // Instant final correction
         });
       }
-      
+
       console.log('Google Maps-style camera movement completed for cable:', cable.cut_id);
     }, (animationDuration * 1000) + 200); // Longer buffer for cinematic timing
   }, []);
@@ -815,7 +815,7 @@ const UserCableMap = React.memo<UserCableMapProps>(({ selectedCable, selectedCut
   // Sidebar cable selection - now includes cinematic camera movement to cable location
   const handleSidebarCableSelect = useCallback((cable: CableData) => {
     console.log('User Cable Map - Sidebar cable selected:', cable.cut_id);
-    
+
     // Add advanced cinematic camera movement to the exact cable location
     if (cable && cable.latitude && cable.longitude) {
       const map = externalMapRef?.current || mapRef.current;
@@ -824,16 +824,16 @@ const UserCableMap = React.memo<UserCableMapProps>(({ selectedCable, selectedCut
         performCinematicCameraMovement(cable, map);
       }
     }
-    
+
     // Show informative notification about the deleted cable
     const cutType = cable.cut_type || 'Unknown';
     const cableId = cable.cut_id ? cable.cut_id.substring(0, 8) + '...' : 'N/A';
-    const faultDate = cable.fault_date 
+    const faultDate = cable.fault_date
       ? new Date(cable.fault_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: '2-digit' })
       : 'Unknown Date';
-    
+
     showNotification(
-      `🎯 Cable Selected: ${cutType} (ID: ${cableId}) - ${faultDate}. Cinematic camera movement to exact location with Google Maps-style zoom!`, 
+      `🎯 Cable Selected: ${cutType} (ID: ${cableId}) - ${faultDate}. Cinematic camera movement to exact location with Google Maps-style zoom!`,
       'info'
     );
   }, [showNotification, externalMapRef]);
@@ -844,12 +844,12 @@ const UserCableMap = React.memo<UserCableMapProps>(({ selectedCable, selectedCut
       // Show helpful notification when opening sidebar
       if (newState) {
         showNotification(
-          '🔧 DeletedCablesSidebar Activated: Click any deleted cable to automatically zoom and navigate to its exact location on the map!', 
+          '🔧 DeletedCablesSidebar Activated: Click any deleted cable to automatically zoom and navigate to its exact location on the map!',
           'info'
         );
       } else {
         showNotification(
-          '📋 DeletedCablesSidebar closed. Use the menu button (☰) to access deleted cable viewing and navigation features.', 
+          '📋 DeletedCablesSidebar closed. Use the menu button (☰) to access deleted cable viewing and navigation features.',
           'info'
         );
       }
@@ -876,93 +876,87 @@ const UserCableMap = React.memo<UserCableMapProps>(({ selectedCable, selectedCut
   return (
     <UserCableMapErrorBoundary>
       <Box sx={{ position: 'relative', width: '100%', height: mapHeight }}>
-      {/* Enhanced Toggle Button for Comprehensive Sidebar Functionality */}
-  <Box sx={{ position: 'absolute', top: 16, left: 8, zIndex: 1200 }}>
-        <Tooltip 
-          title="Access DeletedCablesSidebar - Click any deleted cable to automatically zoom and navigate to its exact location on the map" 
-          arrow
+        {/* Enhanced Toggle Button for Comprehensive Sidebar Functionality */}
+        {/* Deleted Cable Sidebar Toggle Button - normal position when closed, below sidebar when open */}
+        {!sidebarOpen && (
+          <Box sx={{ position: 'absolute', top: 80, left: 8, zIndex: 1200 }}>
+            {/* 90px from the top to move below the zoom controls; adjust as needed */}
+            <IconButton
+              sx={{
+                background: '#fff',
+                boxShadow: 2,
+                borderRadius: 1,
+                p: 1,
+                '&:hover': {
+                  background: '#e3e8f5',
+                  transform: 'scale(1.05)',
+                  transition: 'all 0.2s ease'
+                },
+                '&:active': {
+                  transform: 'scale(0.98)'
+                }
+              }}
+              onClick={handleSidebarToggle}
+              aria-label="Access Comprehensive Deleted Cables Management"
+            >
+              <MenuIcon sx={{ fontSize: 28, color: '#3854A5' }} />
+            </IconButton>
+          </Box>
+        )}
+        {/* When sidebar is open, do not render the hamburger/toggle button inside the sidebar area */}
+
+        {/* Right Sidebar Toggle Button */}
+        <Box sx={{ position: 'absolute', top: 16, right: 15, zIndex: 1200 }}>
+          {/* Wrap Hide Tool Tip toggle button in a Box for grouping */}
+          <Box>
+
+            <IconButton
+              sx={{
+                background: '#fff',
+                boxShadow: 2,
+                borderRadius: 1,
+                '&:hover': { background: '#e3e8f5' }
+              }}
+              onClick={() => setRightSidebarOpen((open) => !open)}
+              aria-label="Show Cable System Overview"
+            >
+              <InfoIcon sx={{ fontSize: 28, color: '#3854A5' }} />
+            </IconButton>
+
+          </Box>
+        </Box>
+
+        {/* Capacity and Utilization Display */}
+        <Box
           sx={{
-            '& .MuiTooltip-tooltip': {
-              fontSize: '12px',
-              maxWidth: '280px',
-              backgroundColor: 'rgba(0, 0, 0, 0.9)',
-              color: 'white'
-            }
+            position: 'absolute',
+            top: 10,
+            right: 10,
+            backgroundColor: 'rgba(255, 255, 255, 0.7)',
+            color: 'white',
+            padding: '8px 12px',
+            borderRadius: '8px',
+            zIndex: 1000,
+            fontSize: '14px',
+            flexDirection: 'row'
           }}
         >
-          <IconButton
-            sx={{ 
-              background: '#fff', 
-              boxShadow: 2, 
-              borderRadius: 1, 
-              p: 1, 
-              '&:hover': { 
-                background: '#e3e8f5',
-                transform: 'scale(1.05)',
-                transition: 'all 0.2s ease'
-              },
-              '&:active': {
-                transform: 'scale(0.98)'
-              }
-            }}
-            onClick={handleSidebarToggle}
-            aria-label="Access Comprehensive Deleted Cables Management"
-          >
-            <MenuIcon sx={{ fontSize: 28, color: '#3854A5' }} />
-          </IconButton>
-        </Tooltip>
-      </Box>
+          <Typography variant="caption" color="gray">
+            Capacity:
+          </Typography>
+          <Typography variant="h4" color="black">
+            {stats.totalGbps} Gbps
+          </Typography>
 
-      {/* Right Sidebar Toggle Button */}
-  <Box sx={{ position: 'absolute', top: 16, right: 15, zIndex: 1200 }}>
-        <Tooltip title="Show Cable System Overview" arrow>
-          <IconButton
-            sx={{ 
-              background: '#fff', 
-              boxShadow: 2, 
-              borderRadius: 1, 
-               
-              '&:hover': { background: '#e3e8f5' } 
-            }}
-            onClick={() => setRightSidebarOpen((open) => !open)}
-            aria-label="Show Cable System Overview"
-          >
-            <InfoIcon sx={{ fontSize: 28, color: '#3854A5' }} />
-          </IconButton>
-        </Tooltip>
-      </Box>
+          <Typography variant="caption" color="gray">
+            Average Utilization:
+          </Typography>
+          <Typography variant="h4" color="black">
+            {ipopUtilization}
+          </Typography>
+        </Box>
 
-      {/* Capacity and Utilization Display */}
-      <Box
-        sx={{
-          position: 'absolute',
-          top: 10,
-          right: 10,
-          backgroundColor: 'rgba(255, 255, 255, 0.7)',
-          color: 'white',
-          padding: '8px 12px',
-          borderRadius: '8px',
-          zIndex: 1000,
-          fontSize: '14px',
-          flexDirection: 'row'
-        }}
-      >
-        <Typography variant="caption" color="gray">
-          Capacity:
-        </Typography>
-        <Typography variant="h4" color="black">
-          {stats.totalGbps} Gbps
-        </Typography>
-
-        <Typography variant="caption" color="gray">
-          Average Utilization:
-        </Typography>
-        <Typography variant="h4" color="black">
-          {ipopUtilization}
-        </Typography>
-      </Box>
-
-      {/* 
+        {/* 
         ==========================================
         DELETEDCABLESSIDEBAR WITH ZOOM NAVIGATION
         ==========================================
@@ -991,221 +985,218 @@ const UserCableMap = React.memo<UserCableMapProps>(({ selectedCable, selectedCut
         The enhanced sidebar now provides intelligent navigation while
         maintaining appropriate user permissions (no delete operations).
       */}
-      {sidebarOpen && (
-        <Box
-          sx={{
-            position: 'absolute',
-            top: 0,
-            left: 0,
-            height: '100%',
-            width: 360, // Restored to admin size
-            zIndex: 1100,
-            display: 'flex',
-            flexDirection: 'column',
-            boxShadow: 4,
-            borderRadius: '8px',
-            overflow: 'hidden',
-            background: 'rgba(255, 255, 255, 0.7)', // Restored to admin transparency
-          }}
-        >
-          <Suspense fallback={<LoadingSpinner message="Loading sidebar..." />}>
-            <DeletedCablesSidebar
-              onSelectCable={handleSidebarCableSelect}
-              lastUpdate={lastUpdate}
-              setLastUpdate={setLastUpdate}
-              isAdmin={false}  // Disable admin functionality like Delete button for users
-              isUser={true}    // Enable user functionality 
-              mapRef={externalMapRef || mapRef}
-              onCloseSidebar={handleSidebarClose}
-            />
-          </Suspense>
-        </Box>
-      )}
-
-      {/* Right Sidebar - HideToolTip */}
-      {rightSidebarOpen && (
-        <Box
-          sx={{
-            position: 'absolute',
-            top: 0,
-            right: 0,
-            height: '100%',
-            width: 360,
-            zIndex: 1100,
-            display: 'flex',
-            flexDirection: 'column',
-            boxShadow: 4,
-            borderRadius: '8px',
-            overflow: 'hidden',
-            background: 'rgba(255, 255, 255, 0.9)',
-            // Ensure proper scrollbar styling
-            '& > *': {
-              overflowY: 'auto',
-              '&::-webkit-scrollbar': { 
-                width: '8px',
-                backgroundColor: 'rgba(0,0,0,0.05)'
-              },
-              '&::-webkit-scrollbar-thumb': { 
-                background: 'rgba(0,0,0,0.3)', 
-                borderRadius: '4px',
-                '&:hover': {
-                  background: 'rgba(0,0,0,0.4)'
-                }
-              },
-              '&::-webkit-scrollbar-track': {
-                background: 'rgba(0,0,0,0.1)',
-                borderRadius: '4px'
-              }
-            }
-          }}
-        >
-          <Suspense fallback={<LoadingSpinner message="Loading tooltip..." />}>
-            <HideToolTip />
-          </Suspense>
-        </Box>
-      )}
-
-      <Box
-        sx={{
-          height: '100%',
-          width: '100%',
-          '& .leaflet-control-zoom': {
-            display: 'none !important'
-          }
-        }}
-      >
-        <MapContainer 
-          style={{ height: '100%', width: '100%' }} 
-          ref={externalMapRef || mapRef}
-        >
-          <RemoveAttribution />
-          <ChangeView center={[18, 134]} zoom={4} />
-          <TileLayer
-            url={`https://maps.geoapify.com/v1/tile/klokantech-basic/{z}/{x}/{y}.png?apiKey=${apiConfig.mapApiKey}`}
-          />
-        
-        {/* Dynamic Markers */}
-      <DynamicMarker position={[1.3678, 125.0788]} label="Kauditan, Indonesia" />
-      <DynamicMarker position={[7.0439, 125.542]} label="Davao, Philippines" />
-      <DynamicMarker position={[13.464717, 144.69305]} label="Piti, Guam" />
-      <DynamicMarker position={[21.4671, 201.7798]} label="Makaha, Hawaii, USA" />
-      <DynamicMarker position={[14.0679, 120.6262]} label="Nasugbu, Philippines" />
-      <DynamicMarker position={[18.412883, 121.517283]} label="Ballesteros, Philippines" />
-      
-      {/* Location Markers - Lazy loaded for better performance */}
-      <Suspense fallback={null}>
-        <USAMarker />
-        <JapanMarker />
-        <HongkongMarker />
-        <SingaporeMarker />
-      </Suspense>
-      
-      {/* Route Components - Lazy loaded and grouped by system for optimal performance */}
-      <Suspense fallback={null}>
-        <SeaUSRoutes />
-      </Suspense>
-      
-      <Suspense fallback={null}>
-        <SJCRoutes />
-      </Suspense>
-      
-      <Suspense fallback={null}>
-        <TGNIARoutes />
-      </Suspense>
-      
-      <Suspense fallback={null}>
-        <C2C />
-      </Suspense>
-
-      {/* Custom deleted cable popup removed - functionality now handled by DeletedCablesSidebar */}
-
-      {/* Enhanced Cable Cut Popup - Full Admin Functionality */}
-      {selectedCable && selectedCutType && (
-        <Marker
-          key={`cable-${selectedCable.cut_id || `${selectedCable.latitude}-${selectedCable.longitude}`}`}
-          position={[selectedCable.latitude, selectedCable.longitude]}
-        >
-          <Popup key={`popup-${selectedCable.cut_id || `${selectedCable.latitude}-${selectedCable.longitude}`}`}>
-            <Box sx={{ minWidth: 270, p: 1 }}>
-              <Box sx={{ background: '#B71C1C', color: 'white', p: 1, borderRadius: 1, mb: 1, textAlign: 'center' }}>
-                <Typography variant="h6">{selectedCutType.toUpperCase()}</Typography>
-              </Box>
-              <Typography sx={{ fontWeight: 700, fontSize: '18px', mb: 1 }}>
-                {selectedCable.distance} km — {selectedCable.cut_id}
-              </Typography>
-              <Typography sx={{ mb: 1 }}>
-                {formatDate(selectedCable.fault_date)} — Depth: {selectedCable.depth}m
-              </Typography>
-              <Typography sx={{ mb: 1 }}>Cut Type: {selectedCutType}</Typography>
-              <Typography sx={{ mb: 1 }}>Cable Type: {selectedCable.cable_type || 'Unknown'}</Typography>
-              <Typography sx={{ mb: 1 }}>Latitude: {selectedCable.latitude}</Typography>
-              <Typography sx={{ mb: 1 }}>Longitude: {selectedCable.longitude}</Typography>
-              <Box sx={{ mt: 2, display: 'flex', flexDirection: 'column', gap: 1 }}>
-                <button 
-                  onClick={(e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    console.log('Close button clicked');
-                    
-                    // Close the popup using the callback function
-                    if (onCloseCablePopup) {
-                      onCloseCablePopup();
-                    }
-                  }}
-                  style={{ 
-                    backgroundColor: '#6c757d', 
-                    color: 'white', 
-                    border: 'none', 
-                    padding: '8px 12px', 
-                    borderRadius: '4px', 
-                    cursor: 'pointer', 
-                    fontSize: '14px', 
-                    fontWeight: 'bold', 
-                    width: '100%',
-                    transition: 'background-color 0.2s'
-                  }}
-                  onMouseOver={(e) => e.currentTarget.style.backgroundColor = '#5a6268'}
-                  onMouseOut={(e) => e.currentTarget.style.backgroundColor = '#6c757d'}
-                >
-                  Close
-                </button>
-              </Box>
-            </Box>
-          </Popup>
-        </Marker>
-      )}
-    
-      </MapContainer>
-      </Box>
-      
-      {/* Enhanced Notification System with DeletedCablesSidebar Integration Feedback */}
-      <Snackbar 
-        open={notification.open} 
-        autoHideDuration={7000}  // Increased duration for more detailed messages
-        onClose={hideNotification}
-        anchorOrigin={{ vertical: 'top', horizontal: 'right' }}
-        sx={{ zIndex: 1300 }}
-      >
-        <Alert 
-          onClose={hideNotification} 
-          severity={notification.severity} 
-          sx={{ 
-            width: '100%', 
-            minWidth: '320px',  // Ensure adequate width for detailed messages
-            fontSize: '14px',
-            '& .MuiAlert-icon': {
-              fontSize: '22px'  // Slightly larger icons for better visibility
-            },
-            '& .MuiAlert-message': {
+        {sidebarOpen && (
+          <Box
+            sx={{
+              position: 'absolute',
+              top: 0,
+              left: 0,
+              height: '100%',
+              width: 360, // Restored to admin size
+              zIndex: 1100,
               display: 'flex',
-              alignItems: 'center'
-            }
+              flexDirection: 'column',
+              boxShadow: 4,
+              borderRadius: '8px',
+              overflow: 'hidden',
+              background: 'rgba(255, 255, 255, 0.7)', // Restored to admin transparency
+            }}
+          >
+            <Suspense fallback={<LoadingSpinner message="Loading sidebar..." />}>
+              <DeletedCablesSidebar
+                onSelectCable={handleSidebarCableSelect}
+                lastUpdate={lastUpdate}
+                setLastUpdate={setLastUpdate}
+                isAdmin={false}  // Disable admin functionality like Delete button for users
+                isUser={true}    // Enable user functionality 
+                mapRef={externalMapRef || mapRef}
+                onCloseSidebar={handleSidebarClose}
+              />
+            </Suspense>
+          </Box>
+        )}
+
+        {/* Right Sidebar - HideToolTip */}
+        {rightSidebarOpen && (
+          <Box
+            sx={{
+              position: 'absolute',
+              top: 0,
+              right: 0,
+              height: '100%',
+              width: 360,
+              zIndex: 1100,
+              display: 'flex',
+              flexDirection: 'column',
+              boxShadow: 4,
+              borderRadius: '8px',
+              overflow: 'hidden',
+              background: 'rgba(255, 255, 255, 0.9)',
+              // Ensure proper scrollbar styling
+              '& > *': {
+                overflowY: 'auto',
+                '&::-webkit-scrollbar': {
+                  width: '8px',
+                  backgroundColor: 'rgba(0,0,0,0.05)'
+                },
+                '&::-webkit-scrollbar-thumb': {
+                  background: 'rgba(0,0,0,0.3)',
+                  borderRadius: '4px',
+                  '&:hover': {
+                    background: 'rgba(0,0,0,0.4)'
+                  }
+                },
+                '&::-webkit-scrollbar-track': {
+                  background: 'rgba(0,0,0,0.1)',
+                  borderRadius: '4px'
+                }
+              }
+            }}
+          >
+            <Suspense fallback={<LoadingSpinner message="Loading tooltip..." />}>
+              <HideToolTip />
+            </Suspense>
+          </Box>
+        )}
+
+        <Box
+          sx={{
+            height: '100%',
+            width: '100%'
           }}
         >
-          {notification.message}
-        </Alert>
-      </Snackbar>
-    </Box>
+          <MapContainer
+            style={{ height: '100%', width: '100%' }}
+            ref={externalMapRef || mapRef}
+          >
+            <RemoveAttribution />
+            <ChangeView center={[18, 134]} zoom={4} />
+            <TileLayer
+              url={`https://maps.geoapify.com/v1/tile/klokantech-basic/{z}/{x}/{y}.png?apiKey=${apiConfig.mapApiKey}`}
+            />
+
+            {/* Dynamic Markers */}
+            <DynamicMarker position={[1.3678, 125.0788]} label="Kauditan, Indonesia" />
+            <DynamicMarker position={[7.0439, 125.542]} label="Davao, Philippines" />
+            <DynamicMarker position={[13.464717, 144.69305]} label="Piti, Guam" />
+            <DynamicMarker position={[21.4671, 201.7798]} label="Makaha, Hawaii, USA" />
+            <DynamicMarker position={[14.0679, 120.6262]} label="Nasugbu, Philippines" />
+            <DynamicMarker position={[18.412883, 121.517283]} label="Ballesteros, Philippines" />
+
+            {/* Location Markers - Lazy loaded for better performance */}
+            <Suspense fallback={null}>
+              <USAMarker />
+              <JapanMarker />
+              <HongkongMarker />
+              <SingaporeMarker />
+            </Suspense>
+
+            {/* Route Components - Lazy loaded and grouped by system for optimal performance */}
+            <Suspense fallback={null}>
+              <SeaUSRoutes />
+            </Suspense>
+
+            <Suspense fallback={null}>
+              <SJCRoutes />
+            </Suspense>
+
+            <Suspense fallback={null}>
+              <TGNIARoutes />
+            </Suspense>
+
+            <Suspense fallback={null}>
+              <C2C />
+            </Suspense>
+
+            {/* Custom deleted cable popup removed - functionality now handled by DeletedCablesSidebar */}
+
+            {/* Enhanced Cable Cut Popup - Full Admin Functionality */}
+            {selectedCable && selectedCutType && (
+              <Marker
+                key={`cable-${selectedCable.cut_id || `${selectedCable.latitude}-${selectedCable.longitude}`}`}
+                position={[selectedCable.latitude, selectedCable.longitude]}
+              >
+                <Popup key={`popup-${selectedCable.cut_id || `${selectedCable.latitude}-${selectedCable.longitude}`}`}>
+                  <Box sx={{ minWidth: 270, p: 1 }}>
+                    <Box sx={{ background: '#B71C1C', color: 'white', p: 1, borderRadius: 1, mb: 1, textAlign: 'center' }}>
+                      <Typography variant="h6">{selectedCutType.toUpperCase()}</Typography>
+                    </Box>
+                    <Typography sx={{ fontWeight: 700, fontSize: '18px', mb: 1 }}>
+                      {selectedCable.distance} km — {selectedCable.cut_id}
+                    </Typography>
+                    <Typography sx={{ mb: 1 }}>
+                      {formatDate(selectedCable.fault_date)} — Depth: {selectedCable.depth}m
+                    </Typography>
+                    <Typography sx={{ mb: 1 }}>Cut Type: {selectedCutType}</Typography>
+                    <Typography sx={{ mb: 1 }}>Cable Type: {selectedCable.cable_type || 'Unknown'}</Typography>
+                    <Typography sx={{ mb: 1 }}>Latitude: {selectedCable.latitude}</Typography>
+                    <Typography sx={{ mb: 1 }}>Longitude: {selectedCable.longitude}</Typography>
+                    <Box sx={{ mt: 2, display: 'flex', flexDirection: 'column', gap: 1 }}>
+                      <button
+                        onClick={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          console.log('Close button clicked');
+
+                          // Close the popup using the callback function
+                          if (onCloseCablePopup) {
+                            onCloseCablePopup();
+                          }
+                        }}
+                        style={{
+                          backgroundColor: '#6c757d',
+                          color: 'white',
+                          border: 'none',
+                          padding: '8px 12px',
+                          borderRadius: '4px',
+                          cursor: 'pointer',
+                          fontSize: '14px',
+                          fontWeight: 'bold',
+                          width: '100%',
+                          transition: 'background-color 0.2s'
+                        }}
+                        onMouseOver={(e) => e.currentTarget.style.backgroundColor = '#5a6268'}
+                        onMouseOut={(e) => e.currentTarget.style.backgroundColor = '#6c757d'}
+                      >
+                        Close
+                      </button>
+                    </Box>
+                  </Box>
+                </Popup>
+              </Marker>
+            )}
+
+          </MapContainer>
+        </Box>
+
+        {/* Enhanced Notification System with DeletedCablesSidebar Integration Feedback */}
+        <Snackbar
+          open={notification.open}
+          autoHideDuration={7000}  // Increased duration for more detailed messages
+          onClose={hideNotification}
+          anchorOrigin={{ vertical: 'top', horizontal: 'right' }}
+          sx={{ zIndex: 1300 }}
+        >
+          <Alert
+            onClose={hideNotification}
+            severity={notification.severity}
+            sx={{
+              width: '100%',
+              minWidth: '320px',  // Ensure adequate width for detailed messages
+              fontSize: '14px',
+              '& .MuiAlert-icon': {
+                fontSize: '22px'  // Slightly larger icons for better visibility
+              },
+              '& .MuiAlert-message': {
+                display: 'flex',
+                alignItems: 'center'
+              }
+            }}
+          >
+            {notification.message}
+          </Alert>
+        </Snackbar>
+      </Box>
     </UserCableMapErrorBoundary>
   );
 });

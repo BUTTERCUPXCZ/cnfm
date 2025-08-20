@@ -246,7 +246,7 @@ function C2C() {
       <Polyline
         positions={positions}
         pathOptions={{
-          color: stats.avgUtilization > 0 ? 'orange' : 'red',
+          color: 'gray',
           weight: 4
         }}
         eventHandlers={{
@@ -257,7 +257,7 @@ function C2C() {
       <Polyline
         positions={hongKongToNasugbu}
         pathOptions={{
-          color: stats.avgUtilization > 0 ? 'orange' : 'red',
+          color: 'gray',
           weight: 4
         }}
         eventHandlers={{

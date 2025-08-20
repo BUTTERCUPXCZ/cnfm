@@ -18,10 +18,10 @@ import React, { useEffect, useState, useCallback } from 'react';
 import SegmentUpdate from './SegmentUpdate';
 
 const legendItems = [
-  { name: 'TGN-IA',  color: '#FFFF00', },
+  { name: 'TGN-IA', color: '#FFFF00', },
   { name: 'SJC', color: '#1976D2' },
   { name: 'SEA-US', color: '#2E7D32' },
-  { name: 'C2C', color: '#F57C00' }
+  { name: 'C2C', color: 'gray' }
 ];
 
 function AdminDashboard() {
@@ -241,19 +241,7 @@ function AdminDashboard() {
                           mb: 2
                         }}
                       >
-                        <Button
-                          variant="contained"
-                          startIcon={<DeleteForeverIcon />}
-                          onClick={handleClearData}
-                          sx={{
-                            backgroundColor: '#d32f2f',
-                            '&:hover': {
-                              backgroundColor: '#b71c1c'
-                            }
-                          }}
-                        >
-                          Clear Data
-                        </Button>
+
                         <Button
                           variant="contained"
                           startIcon={<UploadFileIcon />}

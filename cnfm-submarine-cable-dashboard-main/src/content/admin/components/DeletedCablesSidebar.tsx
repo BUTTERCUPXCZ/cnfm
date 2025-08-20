@@ -15,6 +15,7 @@ import {
     DialogActions,
     DialogContentText
 } from '@mui/material';
+import CloseIcon from '@mui/icons-material/Close';
 import RefreshIcon from '@mui/icons-material/Refresh';
 import L from 'leaflet';
 import { useDeletedCables, useDeleteCable } from '../../../hooks/useApi';
@@ -71,12 +72,12 @@ const DeletedCablesSidebar: React.FC<DeletedCablesSidebarProps> = ({
     const [markerClickCount, setMarkerClickCount] = useState(0);
     const currentMarkerRef = useRef<L.Marker | null>(null);
     const tileLayerRef = useRef<L.TileLayer | null>(null);
-    
+
     // Add refs to prevent race conditions and glitches
     const isAnimatingRef = useRef(false);
     const animationTimeoutsRef = useRef<NodeJS.Timeout[]>([]);
     const lastSelectedCableRef = useRef<string | null>(null);
-    
+
     const [notification, setNotification] = useState<{
         open: boolean;
         message: string;
@@ -86,7 +87,7 @@ const DeletedCablesSidebar: React.FC<DeletedCablesSidebarProps> = ({
         message: '',
         severity: 'info'
     });
-    
+
     const [deleteDialog, setDeleteDialog] = useState<{
         open: boolean;
         cable: CableCut | null;
@@ -120,22 +121,22 @@ const DeletedCablesSidebar: React.FC<DeletedCablesSidebarProps> = ({
 
         try {
             console.log('Making delete request for cable:', cable.cut_id);
-            
+
             const result = await deleteCableMutation.mutateAsync(cable.cut_id);
             console.log('Delete response:', result);
-            
+
             if (result.success) {
                 if (currentMarkerRef.current && mapRef?.current) {
                     currentMarkerRef.current.closePopup();
                     mapRef.current.removeLayer(currentMarkerRef.current);
                     currentMarkerRef.current = null;
                 }
-                
+
                 setShowMapMarker(false);
                 setSelectedCable(null);
-                
+
                 if (setLastUpdate) setLastUpdate(Date.now().toString());
-                
+
                 // TanStack Query will automatically refetch due to mutation success
                 console.log(`Cable ${cable.cut_id} deleted successfully`);
             } else {
@@ -155,13 +156,13 @@ const DeletedCablesSidebar: React.FC<DeletedCablesSidebarProps> = ({
             if (currentMarkerRef.current && (currentMarkerRef.current as any)._customEventCleanup) {
                 (currentMarkerRef.current as any)._customEventCleanup();
             }
-            
+
             if (currentMarkerRef.current && mapRef?.current) {
                 currentMarkerRef.current.closePopup();
                 mapRef.current.removeLayer(currentMarkerRef.current);
                 currentMarkerRef.current = null;
             }
-            
+
             setShowMapMarker(false);
             setSelectedCable(null);
         } catch (error) {
@@ -199,13 +200,13 @@ const DeletedCablesSidebar: React.FC<DeletedCablesSidebarProps> = ({
     // Utility function to clear all ongoing animations and timeouts
     const clearAllAnimations = () => {
         console.log('Clearing all animations and timeouts');
-        
+
         // Clear all stored timeouts
         animationTimeoutsRef.current.forEach(timeout => {
             clearTimeout(timeout);
         });
         animationTimeoutsRef.current = [];
-        
+
         // Reset animation flag
         isAnimatingRef.current = false;
     };
@@ -218,7 +219,7 @@ const DeletedCablesSidebar: React.FC<DeletedCablesSidebarProps> = ({
                 if ((currentMarkerRef.current as any)._customEventCleanup) {
                     (currentMarkerRef.current as any)._customEventCleanup();
                 }
-                
+
                 // Remove marker from map
                 mapRef.current.removeLayer(currentMarkerRef.current);
                 currentMarkerRef.current = null;
@@ -232,47 +233,69 @@ const DeletedCablesSidebar: React.FC<DeletedCablesSidebarProps> = ({
 
     const handleCableClick = (cable: CableCut, event: React.MouseEvent) => {
         event.stopPropagation();
-        
+
         console.log('Cable clicked:', cable.cut_id, 'Currently animating:', isAnimatingRef.current);
-        
+
         // Prevent rapid clicking and race conditions
         if (isAnimatingRef.current && lastSelectedCableRef.current === cable.cut_id) {
             console.log('Animation already in progress for this cable, ignoring click');
             return;
         }
-        
+
         // Clear any ongoing animations and timeouts
         clearAllAnimations();
-        
+
         // Stop any ongoing map animations immediately
         if (mapRef?.current) {
             mapRef.current.stop();
         }
-        
+
         // Clean up existing marker first
         cleanupCurrentMarker();
-        
+
         // Update refs to track current operation
         lastSelectedCableRef.current = cable.cut_id;
         isAnimatingRef.current = true;
-        
-        // Start camera movement and marker creation
-        if (isAdmin && mapRef?.current) {
-            performSmoothCameraMovement(cable);
+
+        // Start camera movement using flyTo (similar to Segment1SeaUS)
+        if (isAdmin && mapRef?.current && cable.latitude && cable.longitude) {
+            flyToLocation(cable);
         }
-        
+
         // Update state for new cable selection
         setSelectedCable(cable);
         setShowMapMarker(true);
         setMarkerClickCount(prev => prev + 1);
-        
+
         // Reset animation flag after a delay to allow for completion
         const resetTimeout = setTimeout(() => {
             isAnimatingRef.current = false;
             console.log('Animation flag reset for cable:', cable.cut_id);
-        }, 5000); // 5 seconds should be enough for any animation
-        
+        }, 3000); // Reduced to 3 seconds for flyTo animation
+
         animationTimeoutsRef.current.push(resetTimeout);
+    };
+
+    // Simple flyTo camera movement (similar to Segment1SeaUS handleCut function)
+    const flyToLocation = (cable: CableCut) => {
+        if (!mapRef?.current || !cable.latitude || !cable.longitude) {
+            console.error('Cannot fly to location: missing map reference or coordinates');
+            return;
+        }
+
+        const map = mapRef.current;
+        const cutPoint: [number, number] = [
+            parseFloat(cable.latitude.toString()),
+            parseFloat(cable.longitude.toString())
+        ];
+
+        // Fly to the cut location with animation (same as Segment1SeaUS)
+        map.flyTo(cutPoint, 7.7, {
+            animate: true,
+            duration: 0.5
+        });
+
+        console.log('Flying to cable location:', cable.cut_id, 'at coordinates:', cutPoint);
     };
 
     const performSmoothCameraMovement = (cable: CableCut) => {
@@ -285,7 +308,7 @@ const DeletedCablesSidebar: React.FC<DeletedCablesSidebarProps> = ({
         const targetLat = parseFloat(parseFloat(cable.latitude.toString()).toFixed(6));
         const targetLng = parseFloat(parseFloat(cable.longitude.toString()).toFixed(6));
         const targetPosition: [number, number] = [targetLat, targetLng];
-        
+
         if (targetLat < -90 || targetLat > 90 || targetLng < -180 || targetLng > 180) {
             console.error('Invalid coordinates for smooth movement:', { targetLat, targetLng });
             return;
@@ -294,15 +317,15 @@ const DeletedCablesSidebar: React.FC<DeletedCablesSidebarProps> = ({
         const currentCenter = map.getCenter();
         const currentZoom = map.getZoom();
         const targetZoom = 13; // Much closer initial zoom for excellent X marker visibility
-        
+
         const distance = currentCenter.distanceTo(L.latLng(targetLat, targetLng));
-        
+
         map.stop();
-        
+
         let animationDuration: number;
         let intermediateZoom: number;
         let useMultiStageAnimation = false;
-        
+
         if (distance > 2000000) {
             animationDuration = 3.5; // Slower, more cinematic
             intermediateZoom = Math.min(currentZoom, 3); // Zoom out more for dramatic effect
@@ -326,7 +349,7 @@ const DeletedCablesSidebar: React.FC<DeletedCablesSidebarProps> = ({
         const mapContainer = map.getContainer();
         const mapHeight = mapContainer.clientHeight;
         const offsetY = mapHeight * 0.12;
-        
+
         const targetPoint = map.project(targetPosition, targetZoom);
         const adjustedPoint = L.point(targetPoint.x, targetPoint.y - offsetY);
         const finalCenter = map.unproject(adjustedPoint, targetZoom);
@@ -334,17 +357,17 @@ const DeletedCablesSidebar: React.FC<DeletedCablesSidebarProps> = ({
         if (useMultiStageAnimation) {
             // Multi-stage cinematic animation for very long distances
             console.log('Starting cinematic multi-stage camera movement');
-            
+
             const intermediateLat = (currentCenter.lat + targetLat) / 2;
             const intermediateLng = (currentCenter.lng + targetLng) / 2;
-            
+
             // Stage 1: Smooth zoom out and move to intermediate position
             map.setView([intermediateLat, intermediateLng], intermediateZoom, {
                 animate: true,
                 duration: animationDuration * 0.35, // Slightly longer for smooth start
                 easeLinearity: 0.02 // Very smooth easing for cinematic effect
             });
-            
+
             // Stage 2: Move closer to target area with smooth transition
             const stage2Timeout = setTimeout(() => {
                 if (lastSelectedCableRef.current === cable.cut_id) {
@@ -356,7 +379,7 @@ const DeletedCablesSidebar: React.FC<DeletedCablesSidebarProps> = ({
                 }
             }, animationDuration * 350);
             animationTimeoutsRef.current.push(stage2Timeout);
-            
+
             // Stage 3: Final cinematic zoom in to target with precise positioning
             const stage3Timeout = setTimeout(() => {
                 if (lastSelectedCableRef.current === cable.cut_id) {
@@ -368,11 +391,11 @@ const DeletedCablesSidebar: React.FC<DeletedCablesSidebarProps> = ({
                 }
             }, animationDuration * 750);
             animationTimeoutsRef.current.push(stage3Timeout);
-            
+
         } else {
             // Enhanced single-stage smooth animation for shorter distances
             console.log('Starting single-stage smooth camera movement');
-            
+
             if (currentZoom > intermediateZoom + 3) {
                 // Two-phase animation: zoom out then move and zoom in
                 map.setView(currentCenter, intermediateZoom, {
@@ -380,7 +403,7 @@ const DeletedCablesSidebar: React.FC<DeletedCablesSidebarProps> = ({
                     duration: animationDuration * 0.3,
                     easeLinearity: 0.02 // Very smooth zoom out
                 });
-                
+
                 const singleStageTimeout = setTimeout(() => {
                     if (lastSelectedCableRef.current === cable.cut_id) {
                         map.setView([finalCenter.lat, finalCenter.lng], targetZoom, {
@@ -391,7 +414,7 @@ const DeletedCablesSidebar: React.FC<DeletedCablesSidebarProps> = ({
                     }
                 }, animationDuration * 300);
                 animationTimeoutsRef.current.push(singleStageTimeout);
-                
+
             } else {
                 // Single smooth movement to target
                 map.setView([finalCenter.lat, finalCenter.lng], targetZoom, {
@@ -401,7 +424,7 @@ const DeletedCablesSidebar: React.FC<DeletedCablesSidebarProps> = ({
                 });
             }
         }
-        
+
         // Verify final position after cinematic animation completes
         const verificationTimeout = setTimeout(() => {
             if (lastSelectedCableRef.current === cable.cut_id) {
@@ -415,16 +438,16 @@ const DeletedCablesSidebar: React.FC<DeletedCablesSidebarProps> = ({
                     targetZoom,
                     actualZoom: finalActualZoom
                 });
-                
+
                 // Fine-tune position if needed (without animation for final precision)
                 const finalDistance = finalActualCenter.distanceTo(L.latLng(finalCenter.lat, finalCenter.lng));
                 if (finalDistance > 100) {
                     console.log('Fine-tuning final camera position for cable:', cable.cut_id);
-                    map.setView([finalCenter.lat, finalCenter.lng], targetZoom, { 
+                    map.setView([finalCenter.lat, finalCenter.lng], targetZoom, {
                         animate: false // Instant final correction
                     });
                 }
-                
+
                 // Reset animation flag when movement is complete
                 isAnimatingRef.current = false;
                 console.log('Camera movement completed and animation flag reset for cable:', cable.cut_id);
@@ -441,7 +464,7 @@ const DeletedCablesSidebar: React.FC<DeletedCablesSidebarProps> = ({
 
         const lat = parseFloat(parseFloat(cable.latitude.toString()).toFixed(6));
         const lng = parseFloat(parseFloat(cable.longitude.toString()).toFixed(6));
-        
+
         if (lat < -90 || lat > 90 || lng < -180 || lng > 180) {
             console.error('Invalid coordinates for cable:', { lat, lng, cable: cable.cut_id });
             return;
@@ -521,15 +544,14 @@ const DeletedCablesSidebar: React.FC<DeletedCablesSidebarProps> = ({
                         </tr>
                         <tr>
                             <td style="font-weight: bold; padding-bottom: 5px; color: #333;">Date:</td>
-                            <td style="text-align: right; padding-bottom: 5px; color: #666; font-size: 11px;">${
-                                cable.fault_date
-                                    ? new Date(cable.fault_date).toLocaleDateString('en-US', {
-                                        month: 'short',
-                                        day: 'numeric',
-                                        year: '2-digit'
-                                    })
-                                    : 'N/A'
-                            }</td>
+                            <td style="text-align: right; padding-bottom: 5px; color: #666; font-size: 11px;">${cable.fault_date
+                ? new Date(cable.fault_date).toLocaleDateString('en-US', {
+                    month: 'short',
+                    day: 'numeric',
+                    year: '2-digit'
+                })
+                : 'N/A'
+            }</td>
                         </tr>
                     </table>
                 </div>
@@ -800,12 +822,18 @@ const DeletedCablesSidebar: React.FC<DeletedCablesSidebarProps> = ({
                     '&::-webkit-scrollbar-thumb': { background: '#ccc', borderRadius: '8px' },
                 }}
             >
-                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-                    <Box sx={{ pl: 10 }}>
-                        <Typography variant="h6" sx={{ fontWeight: 700, color: '#3854A5' }}>
-                            Deleted Cables
-                        </Typography>
-                    </Box>
+                <Box sx={{ display: 'flex', alignItems: 'center', mb: 2, pl: 1 }}>
+                    <IconButton
+                        size="medium"
+                        onClick={onCloseSidebar}
+                        sx={{ mr: 1, color: '#3854A5', p: 1.2, cursor: 'pointer' }}
+                        aria-label="Close sidebar"
+                    >
+                        <CloseIcon sx={{ fontSize: 28 }} />
+                    </IconButton>
+                    <Typography variant="h6" sx={{ fontWeight: 700, color: '#3854A5', flex: 1, textAlign: 'center' }}>
+                        Active Cable Faults
+                    </Typography>
                     <Button
                         variant="contained"
                         size="small"
@@ -827,24 +855,24 @@ const DeletedCablesSidebar: React.FC<DeletedCablesSidebarProps> = ({
                         height: '100%', // Ensure it takes full height of parent
                         minHeight: 0, // Important for flex scrolling
                     }}
-                    >
-                        <List
-                            sx={{
-                                flex: 1,
-                                minHeight: 0,       // Needed in flex layouts
-                                overflowY: 'auto',
-                                pr: 1,
-                                pb: 26,             // Add extra bottom padding to ensure last item is visible
-                                scrollbarWidth: 'thin',
-                                scrollbarColor: '#a6b0cf transparent',
-                                '&::-webkit-scrollbar': {
-                                    width: '8px',
-                                },
-                                '&::-webkit-scrollbar-thumb': {
-                                    background: 'linear-gradient(180deg, #cfd8e3, #a6b0cf)',
-                                    borderRadius: '10px',
-                                },
-                            }}
+                >
+                    <List
+                        sx={{
+                            flex: 1,
+                            minHeight: 0,       // Needed in flex layouts
+                            overflowY: 'auto',
+                            pr: 1,
+                            pb: 26,             // Add extra bottom padding to ensure last item is visible
+                            scrollbarWidth: 'thin',
+                            scrollbarColor: '#a6b0cf transparent',
+                            '&::-webkit-scrollbar': {
+                                width: '8px',
+                            },
+                            '&::-webkit-scrollbar-thumb': {
+                                background: 'linear-gradient(180deg, #cfd8e3, #a6b0cf)',
+                                borderRadius: '10px',
+                            },
+                        }}
                     >
                         {loading ? (
                             <Typography variant="body2" color="text.secondary" sx={{ fontStyle: 'italic', px: 2 }}>
@@ -969,17 +997,17 @@ const DeletedCablesSidebar: React.FC<DeletedCablesSidebarProps> = ({
                     </DialogContentText>
                 </DialogContent>
                 <DialogActions sx={{ p: 2, gap: 1 }}>
-                    <Button 
-                        onClick={closeDeleteDialog} 
-                        variant="outlined" 
+                    <Button
+                        onClick={closeDeleteDialog}
+                        variant="outlined"
                         color="primary"
                         disabled={loading}
                     >
                         Cancel
                     </Button>
-                    <Button 
-                        onClick={() => deleteDialog.cable && handleDeleteCable(deleteDialog.cable)} 
-                        variant="contained" 
+                    <Button
+                        onClick={() => deleteDialog.cable && handleDeleteCable(deleteDialog.cable)}
+                        variant="contained"
                         color="error"
                         disabled={loading}
                         sx={{ minWidth: 100 }}

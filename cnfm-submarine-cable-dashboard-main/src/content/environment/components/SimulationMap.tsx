@@ -55,18 +55,18 @@ const HideToolTip = lazy(() => import('src/content/admin/components/HideToolTip'
 
 // Loading component for better UX during component loading
 const LoadingSpinner: React.FC<{ message?: string }> = ({ message = 'Loading...' }) => (
-  <Box sx={{ 
-    display: 'flex', 
-    alignItems: 'center', 
-    justifyContent: 'center', 
+  <Box sx={{
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
     p: 2,
     bgcolor: 'rgba(255, 255, 255, 0.9)',
     borderRadius: 2,
     minHeight: '60px'
   }}>
-    <Box sx={{ 
-      width: '20px', 
-      height: '20px', 
+    <Box sx={{
+      width: '20px',
+      height: '20px',
       border: '2px solid #f3f3f3',
       borderTop: '2px solid #3854A5',
       borderRadius: '50%',
@@ -173,7 +173,7 @@ const SimulationMap: React.FC<SimulationMapProps> = ({ selectedCable, mapRef: ex
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [rightSidebarOpen, setRightSidebarOpen] = useState(false);
   const [lastUpdate, setLastUpdate] = useState<string | null>(null);
-  
+
   const mapRef = useRef<L.Map | null>(null);
   const apiBaseUrl = process.env.REACT_APP_API_BASE_URL;
   const port = process.env.REACT_APP_PORT;
@@ -298,20 +298,20 @@ const SimulationMap: React.FC<SimulationMapProps> = ({ selectedCable, mapRef: ex
   };
 
   return (
-    <Box sx={{ 
-      position: 'relative', 
-      width: '100%', 
+    <Box sx={{
+      position: 'relative',
+      width: '100%',
       height: '100%',
       borderRadius: '12px', // Add border radius to container
       overflow: 'hidden', // Ensure child elements respect the border radius
-      '& .leaflet-control-zoom': {
-        display: 'none !important'
-      }
+      // '& .leaflet-control-zoom': {
+      //   display: 'none !important'
+      // }
     }}>
       {/* Map Container */}
-      <MapContainer 
-        style={{ 
-          height: mapHeight, 
+      <MapContainer
+        style={{
+          height: mapHeight,
           width: '100%',
           borderRadius: '12px' // Add border radius to map
         }}
@@ -330,7 +330,7 @@ const SimulationMap: React.FC<SimulationMapProps> = ({ selectedCable, mapRef: ex
         <TileLayer
           url={`https://maps.geoapify.com/v1/tile/klokantech-basic/{z}/{x}/{y}.png?apiKey=${mapApiKey}`}
         />
-        
+
         {/* Dynamic Hoverable Dot Markers*/}
         <DynamicMarker
           position={[1.3678, 125.0788]}
@@ -387,7 +387,7 @@ const SimulationMap: React.FC<SimulationMapProps> = ({ selectedCable, mapRef: ex
         <RPLTGNIA10 />
         <RPLTGNIA11 />
         <RPLTGNIA12 />
-         <C2C />
+        <C2C />
         <ReturnButton />
         <CutSeaUS />
         <CutSJC />
@@ -395,141 +395,161 @@ const SimulationMap: React.FC<SimulationMapProps> = ({ selectedCable, mapRef: ex
         <ResetButton />
       </MapContainer>
 
-        <IconButton
-                 sx={{ position: 'absolute', top: 16, left: 16, zIndex: 1200, background: '#fff', boxShadow: 2 }}
-                 onClick={() => {
-                   if (typeof (React as any).startTransition === 'function') {
-                     (React as any).startTransition(() => {
-                       setSidebarOpen((open) => !open);
-                     });
-                   } else {
-                     setSidebarOpen((open) => !open);
-                   }
-                 }}
-                 aria-label="Show Deleted Cables Sidebar"
-               >
-                 <MenuIcon />
-         </IconButton>
 
-    
-        {/* Right sidebar toggle button */}
-        <IconButton
-          sx={{ position: 'absolute', top: 16, right: 16, zIndex: 1200, background: '#fff', boxShadow: 2 }}
-          onClick={() => {
-            // Use startTransition if available (React 18+), otherwise fallback
-            if (typeof (React as any).startTransition === 'function') {
-              (React as any).startTransition(() => {
-                setRightSidebarOpen((open) => !open);
-              });
-            } else {
-              setRightSidebarOpen((open) => !open);
-            }
-          }}
-          aria-label="Show Info Sidebar"
-        >
-          <InfoIcon />
-        </IconButton>
-
-        {/* Left Sidebar - Deleted Cables */}
-        {sidebarOpen && (
-          <Paper
-            elevation={4}
-            sx={{
-              position: 'absolute',
-              top: 0,
-              left: 0,
-              height: '100%',
-              width: 360,
-              zIndex: 1100,
-              display: 'flex',
-              flexDirection: 'column',
-              boxShadow: 4,
-              borderRadius: '1px',
-              overflow: 'hidden',
-              background: 'rgba(255, 255, 255, 0.7)',
-              transform: sidebarOpen ? 'translateX(0)' : 'translateX(-100%)',
-              transition: 'transform 0.3s ease-in-out',
-              animation: 'slideInFromLeft 0.3s ease-out',
-              '@keyframes slideInFromLeft': {
-                '0%': {
-                  transform: 'translateX(-100%)',
-                  opacity: 0,
-                },
-                '100%': {
-                  transform: 'translateX(0)',
-                  opacity: 1,
-                },
-              },
-            }}
-          >
-            <DeletedCablesSidebar
-              onSelectCable={(cable) => {
-                // Let DeletedCablesSidebar handle all map positioning internally
-                // Don't interfere with map panning to avoid conflicts
-                // console.log('Cable selected and positioned:', cable);
-              }}
-              lastUpdate={lastUpdate}
-              setLastUpdate={setLastUpdate}
-              isAdmin={true}  // Enable admin functionality
-              isUser={true}   // Enable user functionality 
-              mapRef={externalMapRef || mapRef}
-              onCloseSidebar={() => setSidebarOpen(false)} // Add close function
-            />
-          </Paper>
-        )}
-
-        {/* Right Sidebar - HideToolTip */}
-        {rightSidebarOpen && (
-          <Paper
-            elevation={4}
-            sx={{
-              position: 'absolute',
-              top: 0,
-              right: 0,
-              height: '100%',
-              width: 360,
-              zIndex: 1100,
-              display: 'flex',
-              flexDirection: 'column',
-              boxShadow: 4,
-              borderRadius: '8px',
-              overflow: 'hidden',
-              background: 'rgba(255, 255, 255, 0.9)',
-            }}
-          >
-             
-            <HideToolTip />
-          </Paper>
-        )}
-
-        {/* Capacity and Utilization Display */}
+      {/* Show sidebar toggle button only when sidebar is closed */}
+      {!sidebarOpen && (
         <Box
           sx={{
             position: 'absolute',
-            top: 10,
-            right: 10,
-            backgroundColor: 'rgba(255, 255, 255, 0.7)',
-            color: 'white',
-            padding: '8px 12px',
-            borderRadius: '8px',
-            zIndex: 1000,
-            fontSize: '14px',
-            flexDirection: 'row'
+            left: 10,
+            top: 78, // below the default zoom controls (which are top: 10px)
+            zIndex: 1200,
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'flex-start',
           }}
         >
-          <Typography variant="caption" color="gray">
-            Capacity:
-          </Typography>
-          <Typography variant="h4" color="black">
-            {stats.totalGbps} Gbps
-          </Typography>
+          <IconButton
+            sx={{ background: '#fff', boxShadow: 2 }}
+            onClick={() => {
+              // Zoom out when toggling the deleted cable sidebar
+              if (mapRef.current) {
+                mapRef.current.setView([18, 134], 3.5, { animate: true });
+              }
+              if (typeof (React as any).startTransition === 'function') {
+                (React as any).startTransition(() => {
+                  setSidebarOpen((open) => !open);
+                });
+              } else {
+                setSidebarOpen((open) => !open);
+              }
+            }}
+            aria-label="Show Deleted Cables Sidebar"
+          >
+            <MenuIcon />
+          </IconButton>
+        </Box>
+      )}
 
-          <Typography variant="caption" color="gray">
-            Average Utilization:
-          </Typography>
-          <Typography variant="h4" color="black">
-            {ipopUtilization}
-            {/* {parseFloat(ipopDifference) !== 0 && (
+
+      {/* Right sidebar toggle button */}
+      <IconButton
+        sx={{ position: 'absolute', top: 16, right: 16, zIndex: 1200, background: '#fff', boxShadow: 2 }}
+        onClick={() => {
+          // Use startTransition if available (React 18+), otherwise fallback
+          if (typeof (React as any).startTransition === 'function') {
+            (React as any).startTransition(() => {
+              setRightSidebarOpen((open) => !open);
+            });
+          } else {
+            setRightSidebarOpen((open) => !open);
+          }
+        }}
+        aria-label="Show Info Sidebar"
+      >
+        <InfoIcon />
+      </IconButton>
+
+      {/* Left Sidebar - Deleted Cables */}
+      {sidebarOpen && (
+        <Paper
+          elevation={4}
+          sx={{
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            height: '100%',
+            width: 360,
+            zIndex: 1100,
+            display: 'flex',
+            flexDirection: 'column',
+            boxShadow: 4,
+            borderRadius: '1px',
+            overflow: 'hidden',
+            background: 'rgba(255, 255, 255, 0.7)',
+            transform: sidebarOpen ? 'translateX(0)' : 'translateX(-100%)',
+            transition: 'transform 0.3s ease-in-out',
+            animation: 'slideInFromLeft 0.3s ease-out',
+            '@keyframes slideInFromLeft': {
+              '0%': {
+                transform: 'translateX(-100%)',
+                opacity: 0,
+              },
+              '100%': {
+                transform: 'translateX(0)',
+                opacity: 1,
+              },
+            },
+          }}
+        >
+          <DeletedCablesSidebar
+            onSelectCable={(cable) => {
+              // Let DeletedCablesSidebar handle all map positioning internally
+              // Don't interfere with map panning to avoid conflicts
+              // console.log('Cable selected and positioned:', cable);
+            }}
+            lastUpdate={lastUpdate}
+            setLastUpdate={setLastUpdate}
+            isAdmin={true}  // Enable admin functionality
+            isUser={true}   // Enable user functionality 
+            mapRef={externalMapRef || mapRef}
+            onCloseSidebar={() => setSidebarOpen(false)} // Add close function
+          />
+        </Paper>
+      )}
+
+      {/* Right Sidebar - HideToolTip */}
+      {rightSidebarOpen && (
+        <Paper
+          elevation={4}
+          sx={{
+            position: 'absolute',
+            top: 0,
+            right: 0,
+            height: '100%',
+            width: 320,
+            zIndex: 1100,
+            display: 'flex',
+            flexDirection: 'column',
+            boxShadow: 4,
+            borderRadius: '8px',
+            overflow: 'hidden',
+            background: 'rgba(255, 255, 255, 0.9)',
+          }}
+        >
+
+          <HideToolTip />
+        </Paper>
+      )}
+
+      {/* Capacity and Utilization Display */}
+      <Box
+        sx={{
+          position: 'absolute',
+          top: 10,
+          right: 10,
+          backgroundColor: 'rgba(255, 255, 255, 0.7)',
+          color: 'white',
+          padding: '8px 12px',
+          borderRadius: '8px',
+          zIndex: 1000,
+          fontSize: '14px',
+          flexDirection: 'row'
+        }}
+      >
+        <Typography variant="caption" color="gray">
+          Capacity:
+        </Typography>
+        <Typography variant="h4" color="black">
+          {stats.totalGbps} Gbps
+        </Typography>
+
+        <Typography variant="caption" color="gray">
+          Average Utilization:
+        </Typography>
+        <Typography variant="h4" color="black">
+          {ipopUtilization}
+          {/* {parseFloat(ipopDifference) !== 0 && (
               <Box
                 sx={(theme) => {
                   const diff = parseFloat(ipopDifference);
@@ -554,8 +574,8 @@ const SimulationMap: React.FC<SimulationMapProps> = ({ selectedCable, mapRef: ex
                 {ipopDifference}
               </Box>
             )} */}
-          </Typography>
-        </Box>
+        </Typography>
+      </Box>
     </Box>
   );
 };

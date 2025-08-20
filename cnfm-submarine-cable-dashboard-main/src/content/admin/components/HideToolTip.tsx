@@ -76,7 +76,7 @@ const CABLE_SYSTEMS_CONFIG = [
     },
     {
         name: 'C2C',
-        color: '#F57C00',
+        color: 'gray',
         segments: [
             { name: 'Hong Kong', endpoint: '/c2c-hongkong' },
             { name: 'Japan', endpoint: '/c2c-japan' },
@@ -87,34 +87,32 @@ const CABLE_SYSTEMS_CONFIG = [
 
 // Scrollbar styles
 const scrollBarStyles = {
-  scrollbarWidth: 'thin', // Firefox
-  scrollbarColor: 'rgba(56, 84, 165, 0.6) transparent',
-  '&::-webkit-scrollbar': {
-    width: '6px',
-  },
-  '&::-webkit-scrollbar-thumb': {
-    background:
-      'linear-gradient(180deg, rgba(56, 84, 165, 0.6) 0%, rgba(56, 84, 165, 0.8) 50%, rgba(56, 84, 165, 0.6) 100%)',
-    borderRadius: '6px',
-    transition: 'all 0.3s ease',
-  },
-  '&::-webkit-scrollbar-thumb:hover': {
-    background:
-      'linear-gradient(180deg, rgba(56, 84, 165, 0.8) 0%, rgba(56, 84, 165, 1) 50%, rgba(56, 84, 165, 0.8) 100%)',
-  },
-  '&::-webkit-scrollbar-track': {
-    background: 'rgba(56, 84, 165, 0.08)',
-    borderRadius: '6px',
-  },
+    scrollbarWidth: 'thin', // Firefox
+    scrollbarColor: 'rgba(56, 84, 165, 0.6) transparent',
+    '&::-webkit-scrollbar': {
+        width: '6px',
+    },
+    '&::-webkit-scrollbar-thumb': {
+        background:
+            'linear-gradient(180deg, rgba(56, 84, 165, 0.6) 0%, rgba(56, 84, 165, 0.8) 50%, rgba(56, 84, 165, 0.6) 100%)',
+        borderRadius: '6px',
+        transition: 'all 0.3s ease',
+    },
+    '&::-webkit-scrollbar-thumb:hover': {
+        background:
+            'linear-gradient(180deg, rgba(56, 84, 165, 0.8) 0%, rgba(56, 84, 165, 1) 50%, rgba(56, 84, 165, 0.8) 100%)',
+    },
+    '&::-webkit-scrollbar-track': {
+        background: 'rgba(56, 84, 165, 0.08)',
+        borderRadius: '6px',
+    },
 };
 
 // Styles
 const styles = {
     container: {
         background: COLORS.background,
-        p: 3,
-        width: '100%',
-        height: '100%',
+        p: 2,
         display: 'flex',
         flexDirection: 'column',
         alignItems: 'center',
@@ -122,12 +120,12 @@ const styles = {
         overflow: 'hidden'
     },
     headerContainer: {
-        display: 'flex', 
-        alignItems: 'center', 
-        justifyContent: 'space-between', 
-        width: '100%', 
-        maxWidth: 280, 
-        mb: 3, 
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        width: '100%',
+        maxWidth: 280,
+        mb: 3,
         mt: 2
     },
     refreshButton: {
@@ -229,12 +227,12 @@ const CapacityCard: React.FC<{
 }> = ({ totalGbps, utilization, difference }) => (
     <Paper sx={styles.capacityCard}>
         <Box sx={{ mb: 2 }}>
-            <Typography 
-                variant="body2" 
-                sx={{ 
-                    color: COLORS.text.secondary, 
-                    fontSize: '12px', 
-                    textTransform: 'uppercase', 
+            <Typography
+                variant="body2"
+                sx={{
+                    color: COLORS.text.secondary,
+                    fontSize: '12px',
+                    textTransform: 'uppercase',
                     letterSpacing: 1,
                     mb: 1
                 }}
@@ -245,14 +243,14 @@ const CapacityCard: React.FC<{
                 {totalGbps} Gbps
             </Typography>
         </Box>
-        
+
         <Box>
-            <Typography 
-                variant="body2" 
-                sx={{ 
-                    color: COLORS.text.secondary, 
-                    fontSize: '12px', 
-                    textTransform: 'uppercase', 
+            <Typography
+                variant="body2"
+                sx={{
+                    color: COLORS.text.secondary,
+                    fontSize: '12px',
+                    textTransform: 'uppercase',
                     letterSpacing: 1,
                     mb: 1
                 }}
@@ -291,20 +289,20 @@ const SystemCard: React.FC<{
 
         {/* System Statistics */}
         <Box sx={{ mb: 2 }}>
-            <StatRow 
-                label="Total Capacity:" 
+            <StatRow
+                label="Total Capacity:"
                 value={`${system.totalCapacity.toLocaleString()} Gbps`}
                 color={system.color}
                 labelColor="#000000"
             />
-            <StatRow 
-                label="Average Utilization:" 
+            <StatRow
+                label="Average Utilization:"
                 value={`${system.avgUtilization}%`}
                 color={system.color}
                 labelColor="#000000"
             />
-            <StatRow 
-                label="Links Not Working:" 
+            <StatRow
+                label="Links Not Working:"
                 value={system.zeroUtilizationCount.toString()}
                 color={system.zeroUtilizationCount > 0 ? COLORS.error : COLORS.success}
                 labelColor="#000000"
@@ -313,11 +311,11 @@ const SystemCard: React.FC<{
 
         {/* Segments */}
         <Box sx={{ mt: 2 }}>
-            <Typography 
-                variant="body2" 
-                sx={{ 
-                    color: COLORS.text.primary, 
-                    fontSize: '11px', 
+            <Typography
+                variant="body2"
+                sx={{
+                    color: COLORS.text.primary,
+                    fontSize: '11px',
                     textTransform: 'uppercase',
                     fontWeight: 600,
                     letterSpacing: '1px',
@@ -329,10 +327,10 @@ const SystemCard: React.FC<{
                 Network Segments
             </Typography>
             {system.segments.map((segment, index) => (
-                <SegmentRow 
-                    key={index} 
-                    segment={segment} 
-                    systemColor={system.color} 
+                <SegmentRow
+                    key={index}
+                    segment={segment}
+                    systemColor={system.color}
                 />
             ))}
         </Box>
@@ -345,10 +343,10 @@ const StatRow: React.FC<{
     color: string;
     labelColor?: string;
 }> = ({ label, value, color, labelColor }) => (
-    <Box sx={{ 
-        display: 'flex', 
-        justifyContent: 'space-between', 
-        alignItems: 'center', 
+    <Box sx={{
+        display: 'flex',
+        justifyContent: 'space-between',
+        alignItems: 'center',
         mb: 1.5,
         py: 0.5,
         px: 1,
@@ -358,10 +356,10 @@ const StatRow: React.FC<{
             backgroundColor: 'rgba(0, 0, 0, 0.05)'
         }
     }}>
-        <Typography 
-            variant="body2" 
-            sx={{ 
-                color: labelColor || COLORS.text.primary, 
+        <Typography
+            variant="body2"
+            sx={{
+                color: labelColor || COLORS.text.primary,
                 fontSize: '12px',
                 fontWeight: 600,
                 letterSpacing: '0.5px'
@@ -369,10 +367,10 @@ const StatRow: React.FC<{
         >
             {label}
         </Typography>
-        <Typography 
-            variant="body2" 
-            sx={{ 
-                fontWeight: 700, 
+        <Typography
+            variant="body2"
+            sx={{
+                fontWeight: 700,
                 color: (label === 'Total Capacity:' || label === 'Average Utilization:') ? '#000000' : color,
                 fontSize: '12px',
                 textAlign: 'right'
@@ -402,10 +400,10 @@ const SegmentRow: React.FC<{
             transform: 'translateX(2px)'
         }
     }}>
-        <Typography 
-            variant="body2" 
-            sx={{ 
-                fontSize: '11px', 
+        <Typography
+            variant="body2"
+            sx={{
+                fontSize: '11px',
                 color: COLORS.text.primary,
                 fontWeight: 600,
                 letterSpacing: '0.3px'
@@ -414,10 +412,10 @@ const SegmentRow: React.FC<{
             {segment.name}
         </Typography>
         <Box sx={{ display: 'flex', gap: 1.5, alignItems: 'center' }}>
-            <Typography 
-                variant="caption" 
-                sx={{ 
-                    fontSize: '10px', 
+            <Typography
+                variant="caption"
+                sx={{
+                    fontSize: '10px',
                     color: COLORS.text.muted,
                     fontWeight: 500,
                     minWidth: '35px',
@@ -458,7 +456,7 @@ const HideToolTip: React.FC = () => {
         avgUtilization: 0,
         zeroUtilizationCount: 0
     });
-    
+
     // Modal state
     const [open, setOpen] = useState(false);
     const [selectedSystem, setSelectedSystem] = useState<CableSystemData | null>(null);
@@ -498,9 +496,9 @@ const HideToolTip: React.FC = () => {
             console.log(`${systemName} ${segmentName} response:`, result);
 
             if (Array.isArray(result) && result.length > 0) {
-                const totalCapacity = result.reduce((sum, item) => 
+                const totalCapacity = result.reduce((sum, item) =>
                     sum + (item.gbps_capacity || item.gbps || 0), 0);
-                const totalUtilization = result.reduce((sum, item) => 
+                const totalUtilization = result.reduce((sum, item) =>
                     sum + (item.percent_utilization || item.percent || 0), 0);
                 const avgUtilization = parseFloat((totalUtilization / result.length).toFixed(2));
 
@@ -530,8 +528,8 @@ const HideToolTip: React.FC = () => {
         // Calculate system totals
         const totalCapacity = updatedSegments.reduce((sum, seg) => sum + seg.capacity, 0);
         const totalUtilization = updatedSegments.reduce((sum, seg) => sum + seg.utilization, 0);
-        const avgUtilization = updatedSegments.length > 0 
-            ? parseFloat((totalUtilization / updatedSegments.length).toFixed(2)) 
+        const avgUtilization = updatedSegments.length > 0
+            ? parseFloat((totalUtilization / updatedSegments.length).toFixed(2))
             : 0;
         const activeSegments = updatedSegments.filter(seg => seg.utilization > 0).length;
         const allRawData = updatedSegments.flatMap(seg => seg.rawData || []);
@@ -578,11 +576,11 @@ const HideToolTip: React.FC = () => {
                 const totalUtilization = result.reduce((sum, item) => sum + (item.percent || 0), 0);
                 const avgUtilization = parseFloat((totalUtilization / result.length).toFixed(2));
                 const zeroCount = result.filter((item) => item.percent === 0).length;
-                setStats({ 
-                    data: result, 
-                    totalGbps, 
-                    avgUtilization, 
-                    zeroUtilizationCount: zeroCount 
+                setStats({
+                    data: result,
+                    totalGbps,
+                    avgUtilization,
+                    zeroUtilizationCount: zeroCount
                 });
                 console.log('Stats updated:', { totalGbps, avgUtilization, zeroCount });
             } else {
@@ -604,7 +602,7 @@ const HideToolTip: React.FC = () => {
             if (data?.current?.length) {
                 const currentVal = parseFloat(data.current[0].a_side);
                 setIpopUtilization(`${currentVal}%`);
-                
+
                 if (data?.previous?.length) {
                     const previousVal = parseFloat(data.previous[0].a_side);
                     const diff = currentVal - previousVal;
@@ -613,7 +611,7 @@ const HideToolTip: React.FC = () => {
                 } else {
                     setIpopDifference('');
                 }
-                
+
                 console.log('Utilization updated:', currentVal);
             } else {
                 setIpopUtilization('0%');
@@ -685,7 +683,7 @@ const HideToolTip: React.FC = () => {
 
     // Render
     return (
-        <Box 
+        <Box
             sx={styles.container}
             onMouseEnter={() => setIsTooltipHovered(true)}
             onMouseLeave={() => setIsTooltipHovered(false)}
@@ -716,27 +714,28 @@ const HideToolTip: React.FC = () => {
             >
                 Cable Systems Details
             </Typography>
+            <span></span>
 
             {/* Scrollable Cable System Cards Container */}
-           
+
             <Box
-            sx={{
-                width: '100%',
-                maxWidth: 280,
-                flex: 1,
-                overflowY: 'auto',
-                pr: 1,
-                transition: 'all 0.3s ease-in-out',
-                ...scrollBarStyles,
-            }}
+                sx={{
+                    width: '100%',
+                    maxWidth: 280,
+                    flex: 1,
+                    overflowY: 'auto',
+                    pr: 1,
+                    transition: 'all 0.3s ease-in-out',
+                    ...scrollBarStyles,
+                }}
             >
-            {cableSystemsData.map((system) => (
-                <SystemCard
-                key={system.name}
-                system={system}
-                onClick={handleSystemClick}
-                />
-            ))}
+                {cableSystemsData.map((system) => (
+                    <SystemCard
+                        key={system.name}
+                        system={system}
+                        onClick={handleSystemClick}
+                    />
+                ))}
             </Box>
 
             {/* Modal Dialog */}

@@ -36,7 +36,7 @@ const legendItems: LegendItem[] = [
   { name: 'TGN-IA', color: 'yellow' },
   { name: 'SJC', color: 'blue' },
   { name: 'SEA-US', color: 'green' },
-  { name: 'C2C', color: 'orange' }
+  { name: 'C2C', color: 'gray' }
 ];
 
 function UserDashboard() {
@@ -56,11 +56,11 @@ function UserDashboard() {
       }
 
       const response = await fetch(`${apiBaseUrl}${port}/latest-update`);
-      
+
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
       }
-      
+
       const data = await response.json();
 
       if (data?.update?.date_time) {
@@ -171,28 +171,11 @@ function UserDashboard() {
                         </Typography>
                       </Box>
                     </Box>
-                    {/* Cut Type Selection */}
-                    <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
-                      <Typography variant="body2" sx={{ mr: 2 }}>Select cut type:</Typography>
-                      {['Shunt Fault', 'Partial Fiber Break', 'Fiber Break', 'Full Cut'].map((type) => (
-                        <Box key={type} sx={{ display: 'flex', alignItems: 'center', mr: 3 }}>
-                          <input
-                            type="radio"
-                            id={type}
-                            name="cutType"
-                            value={type}
-                            checked={selectedCutType === type}
-                            onChange={() => setSelectedCutType(type)}
-                            style={{ marginRight: 6 }}
-                          />
-                          <label htmlFor={type} style={{ color: '#5A6278', fontSize: 16 }}>{type}</label>
-                        </Box>
-                      ))}
-                    </Box>
+
                     {/* Map Container */}
-                    <UserCableMap 
-                      selectedCable={selectedCable} 
-                      selectedCutType={selectedCutType} 
+                    <UserCableMap
+                      selectedCable={selectedCable}
+                      selectedCutType={selectedCutType}
                       mapRef={mapRef}
                       onCloseCablePopup={() => {
                         setSelectedCable(null);
