@@ -1293,6 +1293,13 @@ app.post('/upload-rpl/:cable/:segment', upload.single('file'), (req, res) => {
           return res.status(400).json({ message: 'No valid data found in CSV file' });
         }
 
+        // Simple cable_type inheritance: copy from preceding row
+        for (let i = 1; i < results.length; i++) {
+          if (!results[i].cable_type || results[i].cable_type.trim() === '') {
+            results[i].cable_type = results[i-1].cable_type || '';
+          }
+        }
+
         // First, delete all existing data from the table
         db.query(`DELETE FROM ${tableName}`, (deleteErr, deleteResult) => {
           if (deleteErr) {
