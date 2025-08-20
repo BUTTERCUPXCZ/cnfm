@@ -577,7 +577,9 @@ const Segment6SeaUS: React.FC<Segment6SeaUSProps> = ({
       simulated: new Date().toISOString(),
       latitude: cutPoint[0],
       longitude: cutPoint[1],
-      depth: beforeCut?.Depth || afterCut?.Depth || 'Unknown'
+      depth: beforeCut?.Depth || afterCut?.Depth || 'Unknown',
+      cable: "sea-us",
+      segment: "s6"
     };
 
     try {

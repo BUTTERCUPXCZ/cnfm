@@ -144,50 +144,114 @@ const segmentTables = [
 
 
 // API: Insert all cable cuts data
-app.post('/cable-cuts', (req, res) => {
-  const { cut_id, distance, cut_type, fault_date, simulated, latitude, longitude, depth } = req.body;
+app.post('/cable-cuts', async (req, res) => {
+  const { cut_id, distance, cut_type, fault_date, simulated, latitude, longitude, depth, source_table, cable, segment } = req.body;
 
-  const query = `
-    INSERT INTO cable_cuts (cut_id, distance, cut_type, fault_date, simulated, latitude, longitude, depth)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-  `;
+  try {
+    let cable_type = null;
 
-  db.query(query, [cut_id, distance, cut_type, fault_date, simulated, latitude, longitude, depth], (err, results) => {
-    if (err) {
-      console.error('Database error:', err);
-
-      // Handle duplicate entry
-      if (err.code === 'ER_DUP_ENTRY' || err.errno === 1062) {
-        return res.status(409).json({
-          error: 'Duplicate Entry',
-          message: 'This cable cut already exists. Duplicates are not allowed.'
+    // Cable_type lookup using same logic as depth calculation from frontend
+    if (source_table || (cable && segment)) {
+      const tableName = source_table || `${cable.replace('-', '_')}_rpl_${segment}`;
+      
+      try {
+        // Find the closest rows before and after the cut distance (same logic as frontend)
+        const lookupQuery = `
+          SELECT cable_type, cable_cumulative_total 
+          FROM ${tableName} 
+          WHERE cable_cumulative_total IS NOT NULL
+          ORDER BY ABS(cable_cumulative_total - ?)
+          LIMIT 2
+        `;
+        
+        const result = await new Promise((resolve, reject) => {
+          db.query(lookupQuery, [distance], (err, results) => {
+            if (err) reject(err);
+            else resolve(results);
+          });
         });
+        
+        if (result && result.length > 0) {
+          // Use same logic as frontend: beforeCut?.cable_type || afterCut?.cable_type
+          const closest = result[0];
+          const secondClosest = result[1];
+          
+          cable_type = closest?.cable_type || secondClosest?.cable_type || null;
+        }
+      } catch (err) {
+        console.log(`Could not lookup cable_type from ${tableName}:`, err.message);
       }
-
-      return res.status(409).json({
-        error: 'Operation Failed',
-        message: 'Unable to create cable cut. Please try again.'
-      });
     }
+
+    // Check if cable_cuts table has cable_type column
+    let hasCableTypeCol = false;
+    try {
+      const desc = await new Promise((resolve, reject) => {
+        db.query('DESCRIBE cable_cuts', (err, results) => {
+          if (err) reject(err);
+          else resolve(results);
+        });
+      });
+      hasCableTypeCol = Array.isArray(desc) && desc.some((c) => c.Field === 'cable_type');
+    } catch (e) {
+      hasCableTypeCol = false;
+    }
+
+    // Build the insert query
+    const fields = ['cut_id', 'distance', 'cut_type', 'fault_date', 'simulated', 'latitude', 'longitude', 'depth'];
+    const values = [cut_id, distance, cut_type, fault_date, simulated, latitude, longitude, depth];
+
+    if (hasCableTypeCol && cable_type) {
+      fields.push('cable_type');
+      values.push(cable_type);
+    }
+
+    const placeholders = fields.map(() => '?').join(', ');
+    const query = `INSERT INTO cable_cuts (${fields.join(', ')}) VALUES (${placeholders})`;
+
+    const results = await new Promise((resolve, reject) => {
+      db.query(query, values, (err, results) => {
+        if (err) reject(err);
+        else resolve(results);
+      });
+    });
 
     // Success response
     res.status(201).json({
       success: true,
       message: 'Cable cut data inserted successfully',
       data: {
-        cut_id: cut_id,
-        distance: distance,
-        cut_type: cut_type,
-        fault_date: fault_date,
-        simulated: simulated,
-        latitude: latitude,
-        longitude: longitude,
-        depth: depth,
+        cut_id,
+        distance,
+        cut_type,
+        fault_date,
+        simulated,
+        latitude,
+        longitude,
+        depth,
+        cable_type: cable_type || null,
+        source_table: source_table || `${cable}_rpl_${segment}` || null,
         insertId: results.insertId,
         affectedRows: results.affectedRows
       }
     });
-  });
+
+  } catch (err) {
+    console.error('Database error:', err);
+
+    // Handle duplicate entry
+    if (err.code === 'ER_DUP_ENTRY' || err.errno === 1062) {
+      return res.status(409).json({
+        error: 'Duplicate Entry',
+        message: 'This cable cut already exists. Duplicates are not allowed.'
+      });
+    }
+
+    return res.status(409).json({
+      error: 'Operation Failed',
+      message: 'Unable to create cable cut. Please try again.'
+    });
+  }
 });
 
 

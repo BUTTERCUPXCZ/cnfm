@@ -577,7 +577,9 @@ const Segment2TGNIA: React.FC<Segment2TGNIAProps> = ({
       simulated: new Date().toISOString(),
       latitude: cutPoint[0],
       longitude: cutPoint[1],
-      depth: beforeCut?.Depth || afterCut?.Depth || 'Unknown'
+      depth: beforeCut?.Depth || afterCut?.Depth || 'Unknown',
+      cable: "tgnia",
+      segment: "s2"
     };
 
     try {

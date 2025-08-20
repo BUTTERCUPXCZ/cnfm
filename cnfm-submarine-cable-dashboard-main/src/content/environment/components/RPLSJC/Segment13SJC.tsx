@@ -577,7 +577,9 @@ const Segment13SJC: React.FC<Segment13SJCProps> = ({
       simulated: new Date().toISOString(),
       latitude: cutPoint[0],
       longitude: cutPoint[1],
-      depth: beforeCut?.Depth || afterCut?.Depth || 'Unknown'
+      depth: beforeCut?.Depth || afterCut?.Depth || 'Unknown',
+      cable: "sjc",
+      segment: "s13"
     };
 
     try {
