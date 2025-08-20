@@ -17,6 +17,7 @@ import {
 } from '@mui/material';
 import RefreshIcon from '@mui/icons-material/Refresh';
 import L from 'leaflet';
+import { useDeletedCables, useDeleteCable } from '../../../hooks/useApi';
 
 interface CableCut {
     cut_id: string;
@@ -49,9 +50,22 @@ const DeletedCablesSidebar: React.FC<DeletedCablesSidebarProps> = ({
     mapRef,
     onCloseSidebar
 }) => {
-    const [deletedCables, setDeletedCables] = useState<CableCut[]>([]);
-    const [loading, setLoading] = useState(true);
-    const [error, setError] = useState<string | null>(null);
+    // TanStack Query hooks
+    const {
+        data: deletedCables = [],
+        isLoading: loading,
+        error: queryError,
+        refetch: refetchDeletedCables,
+        isRefetching
+    } = useDeletedCables(lastUpdate);
+
+    // Mutation for deleting cables
+    const deleteCableMutation = useDeleteCable();
+
+    // Convert query error to string format for compatibility
+    const error = queryError ? (queryError instanceof Error ? queryError.message : 'Failed to fetch deleted cables') : null;
+
+    // Local state for UI interactions (keep existing states)
     const [selectedCable, setSelectedCable] = useState<CableCut | null>(null);
     const [showMapMarker, setShowMapMarker] = useState(false);
     const [markerClickCount, setMarkerClickCount] = useState(0);
@@ -90,32 +104,11 @@ const DeletedCablesSidebar: React.FC<DeletedCablesSidebarProps> = ({
     };
 
     const fetchDeletedCables = async () => {
-        setLoading(true);
-        setError(null);
         try {
-            const response = await fetch('http://localhost:8081/fetch-cable-cuts');
-            
-            if (!response.ok) {
-                throw new Error(`HTTP error! status: ${response.status}`);
-            }
-            
-            const data = await response.json();
-            if (Array.isArray(data)) {
-                const sortedData = [...data].sort((a, b) => {
-                    const dateA = a.fault_date ? new Date(a.fault_date) : new Date(0);
-                    const dateB = b.fault_date ? new Date(b.fault_date) : new Date(0);
-                    return dateB.getTime() - dateA.getTime();
-                });
-                setDeletedCables(sortedData);
-            } else {
-                setDeletedCables([]);
-            }
+            await refetchDeletedCables();
         } catch (err) {
             const errorMessage = err instanceof Error ? err.message : 'Failed to fetch deleted cables';
-            setError(errorMessage);
             showNotification(errorMessage, 'error');
-        } finally {
-            setLoading(false);
         }
     };
 
@@ -126,22 +119,10 @@ const DeletedCablesSidebar: React.FC<DeletedCablesSidebarProps> = ({
         }
 
         try {
-            setLoading(true);
-            const response = await fetch(
-                `http://localhost:8081/delete-single-cable-cuts/${cable.cut_id}`,
-                { 
-                    method: 'DELETE',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    }
-                }
-            );
+            console.log('Making delete request for cable:', cable.cut_id);
             
-            if (!response.ok) {
-                throw new Error(`HTTP error! status: ${response.status}`);
-            }
-            
-            const result = await response.json();
+            const result = await deleteCableMutation.mutateAsync(cable.cut_id);
+            console.log('Delete response:', result);
             
             if (result.success) {
                 if (currentMarkerRef.current && mapRef?.current) {
@@ -153,10 +134,9 @@ const DeletedCablesSidebar: React.FC<DeletedCablesSidebarProps> = ({
                 setShowMapMarker(false);
                 setSelectedCable(null);
                 
-                await fetchDeletedCables();
                 if (setLastUpdate) setLastUpdate(Date.now().toString());
                 
-                // Do not show toaster on successful deletion; log instead
+                // TanStack Query will automatically refetch due to mutation success
                 console.log(`Cable ${cable.cut_id} deleted successfully`);
             } else {
                 throw new Error(result.message || 'Unknown error');
@@ -166,7 +146,6 @@ const DeletedCablesSidebar: React.FC<DeletedCablesSidebarProps> = ({
             // Log the error but do not show the toaster when deleting from sidebar
             console.error('Error deleting cable (silent):', errorMessage);
         } finally {
-            setLoading(false);
             setDeleteDialog({ open: false, cable: null });
         }
     };
@@ -761,9 +740,8 @@ const DeletedCablesSidebar: React.FC<DeletedCablesSidebarProps> = ({
         setTimeout(() => setSelectedCable(null), 300);
     };
 
-    useEffect(() => {
-        fetchDeletedCables();
-    }, [lastUpdate]);
+    // TanStack Query automatically handles refetching based on lastUpdate dependency
+    // No need for manual useEffect to call fetchDeletedCables
 
     useEffect(() => {
         if (showMapMarker && selectedCable) {

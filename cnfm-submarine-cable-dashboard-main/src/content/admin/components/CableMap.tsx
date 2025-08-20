@@ -14,7 +14,7 @@ import JapanMarker from './JapanMarker';
 import HongkongMarker from './HongkongMarker';
 import SingaporeMarker from './SingaporeMarker';
 import USAMarker from './USAMarker';
-import SimulationButton from 'src/content/environment/components/SimulationButton';
+import SimulationButton from '../../environment/components/SimulationButton';
 import DeletedCablesSidebar from './DeletedCablesSidebar';
 import HideToolTip from './HideToolTip';
 import RPLSeaUS1 from '../dashboard/RoutePositionList/RPLSeaUS1';
@@ -47,6 +47,15 @@ import RPLTGNIA12 from '../dashboard/RoutePositionList/RPLTGNIA12';
 import RPLSeaUS4 from '../dashboard/RoutePositionList/RPLSeaUS4';
 import RPLSeaUS5 from '../dashboard/RoutePositionList/RPLSeaUS5';
 import RPLSeaUS6 from '../dashboard/RoutePositionList/RPLSeaUS6';
+
+// Import TanStack Query hooks
+import { 
+  useDataSummary, 
+  useIpopUtilization, 
+  useLastUpdate, 
+  useDeleteCable,
+  usePrefetchData 
+} from '../../../hooks/useApi';
 
 function ChangeView({ center, zoom }) {
   const map = useMap();
@@ -207,24 +216,41 @@ const CableMapErrorBoundary: React.FC<{ children: React.ReactNode }> = ({ childr
 const CableMap: React.FC<CableMapProps> = ({ selectedCable, selectedCutType, mapRef: externalMapRef, onCloseCablePopup, setLastUpdate: externalSetLastUpdate }) => {
   // State management with better initialization
   const [mapHeight, setMapHeight] = useState('600px');
-  const [ipopUtilization, setIpopUtilization] = useState('0%');
-  const [ipopDifference, setIpopDifference] = useState('0%');
-  const [stats, setStats] = useState({
-    data: [],
-    totalGbps: 0,
-    avgUtilization: 0,
-    zeroUtilizationCount: 0
-  });
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [rightSidebarOpen, setRightSidebarOpen] = useState(false);
-  const [lastUpdate, setLastUpdate] = useState<string | null>(null);
   
   // Refs for cleanup
   const mapRef = useRef<any>(null);
-  const dataIntervalRef = useRef<NodeJS.Timeout | null>(null);
-  const ipopIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const mountedRef = useRef(true);
+
+  // TanStack Query hooks for data fetching
+  const {
+    data: statsData,
+    isLoading: isStatsLoading,
+    error: statsError,
+    refetch: refetchStats
+  } = useDataSummary();
+
+  const {
+    data: ipopData,
+    isLoading: isIpopLoading,
+    error: ipopError,
+    refetch: refetchIpop
+  } = useIpopUtilization();
+
+  const {
+    data: lastUpdate,
+    isLoading: isLastUpdateLoading,
+    error: lastUpdateError,
+    refetch: refetchLastUpdate
+  } = useLastUpdate();
+
+  // Mutation for deleting cables
+  const deleteCableMutation = useDeleteCable();
+
+  // Prefetch hook for performance
+  const { prefetchDataSummary, prefetchIpopUtilization } = usePrefetchData();
 
   // Environment variables with fallbacks
   const apiConfig = useMemo(() => ({
@@ -232,6 +258,33 @@ const CableMap: React.FC<CableMapProps> = ({ selectedCable, selectedCutType, map
     port: process.env.REACT_APP_PORT || ':8081',
     mapApiKey: process.env.REACT_APP_GEOAPIFY_API_KEY || ''
   }), []);
+
+  // Memoized stats with fallback values
+  const stats = useMemo(() => {
+    if (statsData) {
+      return statsData;
+    }
+    return {
+      data: [],
+      totalGbps: 0,
+      avgUtilization: 0,
+      zeroUtilizationCount: 0
+    };
+  }, [statsData]);
+
+  // Memoized IPOP data with fallback values
+  const { ipopUtilization, ipopDifference } = useMemo(() => {
+    if (ipopData) {
+      return {
+        ipopUtilization: ipopData.utilization,
+        ipopDifference: ipopData.difference
+      };
+    }
+    return {
+      ipopUtilization: '0%',
+      ipopDifference: ''
+    };
+  }, [ipopData]);
 
   // Optimized formatDate function with memoization
   const formatDate = useCallback((dateStr: string) => {
@@ -241,7 +294,7 @@ const CableMap: React.FC<CableMapProps> = ({ selectedCable, selectedCutType, map
     return d.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
   }, []);
 
-  // Optimized delete cable function with better error handling
+  // Optimized delete cable function with TanStack Query mutation
   const handleDeleteCable = useCallback(async (cable: any) => {
     if (!cable?.cut_id) {
       alert('Invalid cable data');
@@ -250,26 +303,13 @@ const CableMap: React.FC<CableMapProps> = ({ selectedCable, selectedCutType, map
 
     try {
       console.log('Making delete request for cable:', cable.cut_id);
-      const response = await fetch(
-        `${apiConfig.baseUrl}${apiConfig.port}/delete-single-cable-cuts/${cable.cut_id}`,
-        { 
-          method: 'DELETE',
-          headers: {
-            'Content-Type': 'application/json'
-          }
-        }
-      );
       
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-      
-      const result = await response.json();
+      const result = await deleteCableMutation.mutateAsync(cable.cut_id);
       console.log('Delete response:', result);
       
       if (result.success) {
         // Update the lastUpdate to trigger refresh in sidebar if it exists
-        const updateFunction = externalSetLastUpdate || setLastUpdate;
+        const updateFunction = externalSetLastUpdate;
         if (updateFunction) {
           updateFunction(Date.now().toString());
         }
@@ -278,6 +318,9 @@ const CableMap: React.FC<CableMapProps> = ({ selectedCable, selectedCutType, map
         if (onCloseCablePopup) {
           onCloseCablePopup();
         }
+        // Manually refetch to ensure immediate UI update
+        refetchStats();
+        refetchLastUpdate();
       } else {
         alert('Failed to delete cable: ' + (result.message || 'Unknown error'));
       }
@@ -285,7 +328,7 @@ const CableMap: React.FC<CableMapProps> = ({ selectedCable, selectedCutType, map
       console.error('Error deleting cable:', error);
       alert('Error deleting cable: ' + (error instanceof Error ? error.message : 'Unknown error'));
     }
-  }, [apiConfig, externalSetLastUpdate, setLastUpdate, onCloseCablePopup]);
+  }, [deleteCableMutation, externalSetLastUpdate, onCloseCablePopup, refetchStats, refetchLastUpdate]);
 
   // Optimized map height calculation
   const updateMapHeight = useCallback(() => {
@@ -299,77 +342,6 @@ const CableMap: React.FC<CableMapProps> = ({ selectedCable, selectedCutType, map
     }
   }, []);
 
-  // Optimized data fetching with abort controller
-  const fetchDataSummary = useCallback(async (abortController?: AbortController) => {
-    try {
-      const response = await fetch(`${apiConfig.baseUrl}${apiConfig.port}/data-summary`, {
-        signal: abortController?.signal
-      });
-      
-      if (!response.ok) throw new Error('Failed to fetch data summary');
-      
-      const result = await response.json();
-      
-      if (!mountedRef.current) return;
-
-      if (Array.isArray(result) && result.length > 0) {
-        const totalGbps = result.reduce((sum, item) => sum + (item.gbps || 0), 0);
-        const totalUtilization = result.reduce((sum, item) => sum + (item.percent || 0), 0);
-        const avgUtilization = parseFloat((totalUtilization / result.length).toFixed(2));
-        const zeroCount = result.filter((item) => item.percent === 0).length;
-        
-        setStats({ data: result, totalGbps, avgUtilization, zeroUtilizationCount: zeroCount });
-        return true; // Success
-      } else {
-        console.log('No data received, will retry...');
-        return false; // No data
-      }
-    } catch (err) {
-      if (err.name === 'AbortError') return false;
-      console.error('Error fetching data:', err);
-      return false;
-    }
-  }, [apiConfig]);
-
-  // Optimized IPOP utilization fetching
-  const fetchIpopUtilization = useCallback(async (abortController?: AbortController) => {
-    try {
-      const response = await fetch(`${apiConfig.baseUrl}${apiConfig.port}/average-util`, { 
-        headers: { 'Cache-Control': 'no-cache' },
-        signal: abortController?.signal
-      });
-      
-      if (!response.ok) throw new Error('Failed to fetch IPOP utilization');
-      
-      const data = await response.json();
-      
-      if (!mountedRef.current) return;
-
-      if (data?.current?.length) {
-        const currentVal = parseFloat(data.current[0].a_side);
-        setIpopUtilization(`${currentVal}%`);
-        
-        if (data?.previous?.length) {
-          const previousVal = parseFloat(data.previous[0].a_side);
-          const diff = currentVal - previousVal;
-          const sign = diff > 0 ? '+' : '';
-          setIpopDifference(`${sign}${diff.toFixed(2)}%`);
-        } else {
-          setIpopDifference('');
-        }
-        return true;
-      } else {
-        setIpopUtilization('0%');
-        setIpopDifference('');
-        return false;
-      }
-    } catch (error) {
-      if (error.name === 'AbortError') return false;
-      console.error('Error fetching IPOP utilization:', error);
-      return false;
-    }
-  }, [apiConfig]);
-
   // Initialize map height on mount
   useEffect(() => {
     updateMapHeight();
@@ -379,108 +351,61 @@ const CableMap: React.FC<CableMapProps> = ({ selectedCable, selectedCutType, map
     };
   }, [updateMapHeight]);
 
-  // Optimized data fetching effect with cleanup
+  // Prefetch data on component mount for better performance
   useEffect(() => {
-    let retryCount = 0;
-    const maxRetries = 5;
-    
-    const startDataFetching = async () => {
-      const abortController = new AbortController();
-      
-      const fetchData = async () => {
-        const success = await fetchDataSummary(abortController);
-        if (success) {
-          retryCount = 0; // Reset retry count on success
-          if (dataIntervalRef.current) {
-            clearInterval(dataIntervalRef.current);
-            dataIntervalRef.current = null;
-          }
-        } else if (retryCount < maxRetries) {
-          retryCount++;
-          console.log(`Retrying data fetch (${retryCount}/${maxRetries})...`);
-        }
-      };
+    prefetchDataSummary();
+    prefetchIpopUtilization();
+  }, [prefetchDataSummary, prefetchIpopUtilization]);
 
-      // Initial fetch
-      await fetchData();
-      
-      // Set up interval only if we haven't succeeded yet
-      if (retryCount > 0 && retryCount < maxRetries) {
-        dataIntervalRef.current = setInterval(fetchData, 3000); // Reduced frequency
-      }
-
-      return abortController;
-    };
-
-    const abortController = startDataFetching();
-    
-    return () => {
-      if (dataIntervalRef.current) {
-        clearInterval(dataIntervalRef.current);
-        dataIntervalRef.current = null;
-      }
-      abortController.then(controller => controller.abort());
-    };
-  }, [fetchDataSummary]);
-
-  // Optimized IPOP utilization fetching effect
+  // Sync external lastUpdate prop with query result
   useEffect(() => {
-    let retryCount = 0;
-    const maxRetries = 5;
-    
-    const startIpopFetching = async () => {
-      const abortController = new AbortController();
-      
-      const fetchIpop = async () => {
-        const success = await fetchIpopUtilization(abortController);
-        if (success) {
-          retryCount = 0;
-          if (ipopIntervalRef.current) {
-            clearInterval(ipopIntervalRef.current);
-            ipopIntervalRef.current = null;
-          }
-        } else if (retryCount < maxRetries) {
-          retryCount++;
-          console.log(`Retrying IPOP fetch (${retryCount}/${maxRetries})...`);
-        }
-      };
-
-      await fetchIpop();
-      
-      if (retryCount > 0 && retryCount < maxRetries) {
-        ipopIntervalRef.current = setInterval(fetchIpop, 3000);
-      }
-
-      return abortController;
-    };
-
-    const abortController = startIpopFetching();
-    
-    return () => {
-      if (ipopIntervalRef.current) {
-        clearInterval(ipopIntervalRef.current);
-        ipopIntervalRef.current = null;
-      }
-      abortController.then(controller => controller.abort());
-    };
-  }, [fetchIpopUtilization]);
+    if (externalSetLastUpdate && lastUpdate) {
+      externalSetLastUpdate(lastUpdate);
+    }
+  }, [lastUpdate, externalSetLastUpdate]);
 
   // Component unmount cleanup
   useEffect(() => {
     return () => {
       mountedRef.current = false;
-      if (dataIntervalRef.current) {
-        clearInterval(dataIntervalRef.current);
-      }
-      if (ipopIntervalRef.current) {
-        clearInterval(ipopIntervalRef.current);
-      }
     };
   }, []);
+
+  // Loading state for critical data
+  const isLoading = isStatsLoading || isIpopLoading;
+
+  // Error state - only show if there are critical errors
+  if (statsError && !statsData) {
+    console.error('Critical error loading stats:', statsError);
+  }
+  
+  if (ipopError && !ipopData) {
+    console.error('Error loading IPOP data:', ipopError);
+  }
 
   return (
     <CableMapErrorBoundary>
       <Box sx={{ position: 'relative', width: '100%', height: mapHeight }}>
+        {/* Loading overlay */}
+        {isLoading && (
+          <Box
+            sx={{
+              position: 'absolute',
+              top: 0,
+              left: 0,
+              right: 0,
+              bottom: 0,
+              backgroundColor: 'rgba(255, 255, 255, 0.8)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              zIndex: 2000,
+            }}
+          >
+            <Typography variant="h6">Loading map data...</Typography>
+          </Box>
+        )}
+
         {/* Left sidebar toggle button */}
         <IconButton
           sx={{ position: 'absolute', top: 16, left: 16, zIndex: 1200, background: '#fff', boxShadow: 2 }}
@@ -537,8 +462,14 @@ const CableMap: React.FC<CableMapProps> = ({ selectedCable, selectedCutType, map
                 // Don't interfere with map panning to avoid conflicts
                 // console.log('Cable selected and positioned:', cable);
               }}
-              lastUpdate={lastUpdate}
-              setLastUpdate={setLastUpdate}
+              lastUpdate={lastUpdate || undefined}
+              setLastUpdate={(val: string) => {
+                if (externalSetLastUpdate) {
+                  externalSetLastUpdate(val);
+                }
+                // Force refetch of lastUpdate query to stay in sync
+                refetchLastUpdate();
+              }}
               isAdmin={true}  // Enable admin functionality
               isUser={true}   // Enable user functionality 
               mapRef={externalMapRef || mapRef}

@@ -1,3 +1,4 @@
+import React from 'react';
 import {
   Box,
   Dialog,
@@ -11,7 +12,7 @@ import {
 } from '@mui/material';
 import { useMap } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, useMemo } from 'react';
 import L from 'leaflet';
 import { PieChart, Pie, Cell, Tooltip } from 'recharts';
 import {
@@ -19,6 +20,7 @@ import {
   ArrowUpward,
   HorizontalRule
 } from '@mui/icons-material';
+import { useSingaporeMarkerData } from '../../../hooks/useApi';
 
 type DynamicMarkerProps = {
   position: [number, number];
@@ -92,55 +94,51 @@ const renderLabel = ({ name, value, percent }: any) => {
 
 const SingaporeMarker = () => {
   const [open, setOpen] = useState(false);
-  const [data, setData] = useState([]);
-  const [total, setTotal] = useState(0);
-  const [averageUtilization, setAverageUtilization] = useState(0);
-  const [averageDifference, setAverageDifference] = useState(0);
-  const apiBaseUrl = process.env.REACT_APP_API_BASE_URL;
-  const port = process.env.REACT_APP_PORT;
 
   // Handle Dialog Open/Close
   const handleOpen = () => setOpen(true);
   const handleClose = () => setOpen(false);
 
-  useEffect(() => {
-    let interval;
-    const fetchSingaporeMarkerData = async () => {
-      try {
-        const res = await fetch(`${apiBaseUrl}${port}/singapore-marker`);
-        const json = await res.json();
+  // Use TanStack Query for data fetching
+  const { data: rawData = [], isLoading, error } = useSingaporeMarkerData();
 
-        // Calculate total for center display
-        const totalCapacity = json.reduce(
-          (acc, item) => acc + parseFloat(item.value || 0),
-          0
-        );
-
-        // Get the shared overall utilization
-        const avgUtilizationOverall =
-          json.length > 0 ? json[0].avgUtilizationOverall : 0;
-
-        // Get the difference of the overall utilization and the previous one
-        const prevAvgUtil = json.length > 0 ? json[0].prevAvgUtil : 0;
-        const utilDifference = avgUtilizationOverall - prevAvgUtil;
-
-        setData(json);
-        setTotal(totalCapacity);
-        setAverageUtilization(avgUtilizationOverall);
-        setAverageDifference(Number(utilDifference.toFixed(2)));
-      } catch (err) {
-        console.error('Failed to fetch Singapore marker data:', err);
-      }
-    };
-    // Initial fetch
-    fetchSingaporeMarkerData();
-    // Only set interval if we don't have data yet
-    if (data) {
-      interval = setInterval(fetchSingaporeMarkerData, 5000);
+  // Calculate derived data from query result
+  const { data, total, averageUtilization, averageDifference } = useMemo(() => {
+    if (!rawData.length) {
+      return {
+        data: [],
+        total: 0,
+        averageUtilization: 0,
+        averageDifference: 0
+      };
     }
 
-    return () => clearInterval(interval);
-  }, [apiBaseUrl, port]); // ✅ Runs only once on mount
+    // Calculate total for center display
+    const totalCapacity = rawData.reduce(
+      (acc, item) => acc + parseFloat(item.value || 0),
+      0
+    );
+
+    // Get the shared overall utilization
+    const avgUtilizationOverall =
+      rawData.length > 0 ? rawData[0].avgUtilizationOverall : 0;
+
+    // Get the difference of the overall utilization and the previous one
+    const prevAvgUtil = rawData.length > 0 ? rawData[0].prevAvgUtil : 0;
+    const utilDifference = avgUtilizationOverall - prevAvgUtil;
+
+    return {
+      data: rawData,
+      total: totalCapacity,
+      averageUtilization: avgUtilizationOverall,
+      averageDifference: Number(utilDifference.toFixed(2))
+    };
+  }, [rawData]);
+
+  // Log errors for debugging
+  if (error) {
+    console.error('Failed to fetch Singapore marker data:', error);
+  }
 
   const CustomTooltip = ({ active, payload, total }: any) => {
     if (active && payload && payload.length) {

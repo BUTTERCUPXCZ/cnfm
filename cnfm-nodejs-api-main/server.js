@@ -1037,46 +1037,90 @@ app.post('/upload-csv', upload.single('file'), (req, res) => {
       if (Object.values(row).every(value => value === '')) return;
       results.push(row);
     })
-    .on('end', () => {
-      const insertQuery = `
-        INSERT INTO utilization (
-          site, cable, a_side, port_a_side, z_side, port_b_side,
-          bearer_id, globe_circuit_id, handover_document, trunk_type,
-          link, mbps_capacity, gbps_capacity, percent_utilization, remarks
-        ) VALUES ?`;
+    .on('end', async () => {
+      try {
+        // ✅ Clear existing utilization data before inserting new data
+        // Clear previous data archive first
+        await new Promise((resolve, reject) => {
+          db.query("DELETE FROM previous_utilization", (err) => {
+            if (err) reject(err);
+            else resolve();
+          });
+        });
 
-      const values = results.map(row => [
-        row.site, row.cable, row.a_side, row.port_a_side, row.z_side,
-        row.port_b_side, row.bearer_id, row.globe_circuit_id, row.handover_document,
-        row.trunk_type, row.link, row.mbps_capacity, row.gbps_capacity,
-        row.percent_utilization, row.remarks
-      ]);
+        // Copy current data to archive
+        await new Promise((resolve, reject) => {
+          db.query("INSERT INTO previous_utilization SELECT * FROM utilization", (err) => {
+            if (err) reject(err);
+            else resolve();
+          });
+        });
 
-      db.query(insertQuery, [values], (err) => {
-        fs.unlinkSync(filePath); // Delete the file after processing
-        if (err) {
-          console.error(err);
-          return res.status(500).json({ message: 'Error inserting CSV data' });
-        }
+        // Clear current utilization data
+        await new Promise((resolve, reject) => {
+          db.query("DELETE FROM utilization", (err) => {
+            if (err) reject(err);
+            else resolve();
+          });
+        });
+
+        // Insert new data
+        const insertQuery = `
+          INSERT INTO utilization (
+            site, cable, a_side, port_a_side, z_side, port_b_side,
+            bearer_id, globe_circuit_id, handover_document, trunk_type,
+            link, mbps_capacity, gbps_capacity, percent_utilization, remarks
+          ) VALUES ?`;
+
+        const values = results.map(row => [
+          row.site, row.cable, row.a_side, row.port_a_side, row.z_side,
+          row.port_b_side, row.bearer_id, row.globe_circuit_id, row.handover_document,
+          row.trunk_type, row.link, row.mbps_capacity, row.gbps_capacity,
+          row.percent_utilization, row.remarks
+        ]);
+
+        await new Promise((resolve, reject) => {
+          db.query(insertQuery, [values], (err) => {
+            if (err) reject(err);
+            else resolve();
+          });
+        });
 
         // ✅ Log the CSV upload with filename
-        db.query(
-          "INSERT INTO data_updates (description, date_time, file_name) VALUES (?, NOW(), ?)",
-          ['Uploaded new utilization data from CSV', fileName],
-          (logErr) => {
-            if (logErr) {
-              console.error('Error logging data update:', logErr);
-              return res.status(500).json({ message: 'Data inserted, but failed to log update.' });
+        await new Promise((resolve, reject) => {
+          db.query(
+            "INSERT INTO data_updates (description, date_time, file_name) VALUES (?, NOW(), ?)",
+            ['Cleared previous data and uploaded new utilization data from CSV', fileName],
+            (logErr) => {
+              if (logErr) reject(logErr);
+              else resolve();
             }
+          );
+        });
 
-            res.json({
-              message: 'CSV data inserted and update logged successfully',
-              fileName: fileName,
-              recordsInserted: values.length
-            });
-          }
-        );
-      });
+        // Clean up uploaded file
+        fs.unlinkSync(filePath);
+
+        res.json({
+          message: 'Previous data cleared and new CSV data inserted successfully',
+          fileName: fileName,
+          recordsInserted: values.length
+        });
+
+      } catch (error) {
+        // Clean up uploaded file in case of error
+        try {
+          fs.unlinkSync(filePath);
+        } catch (unlinkError) {
+          console.error('Error deleting file:', unlinkError);
+        }
+
+        console.error('Error processing CSV upload:', error);
+        return res.status(500).json({
+          message: 'Error processing CSV data',
+          error: error.message
+        });
+      }
     });
 });
 
@@ -1369,15 +1413,15 @@ app.post('/upload-rpl/:cable/:segment', upload.single('file'), (req, res) => {
               ) VALUES ?`;
 
             values = results.map(row => [
-                row.pos_no || null, row.event || null, row.latitude || null, row.latitude2 || null, row.latitude3 || null,
-                row.longitude || null, row.longitude2 || null, row.longitude3 || null, row.decimal_latitude || null,
-                row.radians_latitude || null, row.sin_latitude || null, row.meridional_parts || null, row.distance_from_equator || null,
-                row.decimal_longitude || null, row.difference_in_latitude || null, row.difference_in_mps || null, row.difference_in_edist || null,
-                row.difference_in_longitude || null, row.course || null, row.distance_in_nmiles || null, row.bearing || null,
-                row.between_positions || null, row.cumulative_total || null, row.slack || null, row.cable_between_positions || null,
-                row.cable_cumulative_total || null, row.cable_type || null, row.cumulative_by_type || null, row.cable_totals_by_type || null,
-                row.approx_depth || null, row.lay_direction || null, row.lay_vessel || null, row.date_installed || null,
-                row.burial_method || null, row.burial_depth || null, row.route_features || null, row.a || null, row.aa || null, row.ee || null
+              row.pos_no || null, row.event || null, row.latitude || null, row.latitude2 || null, row.latitude3 || null,
+              row.longitude || null, row.longitude2 || null, row.longitude3 || null, row.decimal_latitude || null,
+              row.radians_latitude || null, row.sin_latitude || null, row.meridional_parts || null, row.distance_from_equator || null,
+              row.decimal_longitude || null, row.difference_in_latitude || null, row.difference_in_mps || null, row.difference_in_edist || null,
+              row.difference_in_longitude || null, row.course || null, row.distance_in_nmiles || null, row.bearing || null,
+              row.between_positions || null, row.cumulative_total || null, row.slack || null, row.cable_between_positions || null,
+              row.cable_cumulative_total || null, row.cable_type || null, row.cumulative_by_type || null, row.cable_totals_by_type || null,
+              row.approx_depth || null, row.lay_direction || null, row.lay_vessel || null, row.date_installed || null,
+              row.burial_method || null, row.burial_depth || null, row.route_features || null, row.a || null, row.aa || null, row.ee || null
             ]);
           } else if (cable === 'sea-us' && segment === 's6') {
             insertQuery = `
@@ -1390,11 +1434,11 @@ app.post('/upload-rpl/:cable/:segment', upload.single('file'), (req, res) => {
               ) VALUES ?`;
 
             values = results.map(row => [
-                row.ref || null, row.ship_operation || null, row.date || null, row.latitude || null, row.latitude2 || null, row.latitude3 || null,
-                row.longitude || null, row.longitude2 || null, row.longitude3 || null, row.event || null, row.repeater || null,
-                row.cable_line_no || null, row.cable_armour_type || null, row.cable_armour_length || null, row.section_length || null,
-                row.total_length || null, row.kp || null, row.slack_between_positions || null, row.burial_depth || null,
-                row.corr_depth || null, row.chart_no || null, row.remarks || null
+              row.ref || null, row.ship_operation || null, row.date || null, row.latitude || null, row.latitude2 || null, row.latitude3 || null,
+              row.longitude || null, row.longitude2 || null, row.longitude3 || null, row.event || null, row.repeater || null,
+              row.cable_line_no || null, row.cable_armour_type || null, row.cable_armour_length || null, row.section_length || null,
+              row.total_length || null, row.kp || null, row.slack_between_positions || null, row.burial_depth || null,
+              row.corr_depth || null, row.chart_no || null, row.remarks || null
             ]);
           } else if (cable === 'sjc') {
             // Query for SJC cable

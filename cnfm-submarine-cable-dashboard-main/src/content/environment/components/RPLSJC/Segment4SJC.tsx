@@ -15,6 +15,7 @@ import FormLabel from '@mui/material/FormLabel';
 import { Formik, Form } from 'formik';
 import * as Yup from 'yup';
 import Swal from 'sweetalert2';
+import { getFormikErrorText, hasFormikError } from '../../../../utils/formikHelpers';
 
 // Define prop types for TypeScript
 interface Segment4SJCProps {
@@ -723,7 +724,7 @@ const Segment4SJC: React.FC<Segment4SJCProps> = ({
                 onChange={handleChange}
                 onBlur={handleBlur}
                 error={touched.kmValue && Boolean(errors.kmValue)}
-                helperText={touched.kmValue && errors.kmValue}
+                helperText={hasFormikError(touched.kmValue, errors.kmValue) ? getFormikErrorText(errors.kmValue) : ''}
               />
 
               <Box sx={{ mt: 2 }}>
@@ -739,7 +740,7 @@ const Segment4SJC: React.FC<Segment4SJCProps> = ({
                   onChange={handleChange}
                   onBlur={handleBlur}
                   error={touched.faultDate && Boolean(errors.faultDate)}
-                  helperText={touched.faultDate && errors.faultDate}
+                  helperText={hasFormikError(touched.faultDate, errors.faultDate) ? getFormikErrorText(errors.faultDate) : ''}
                   InputLabelProps={{
                     shrink: true
                   }}
@@ -784,7 +785,7 @@ const Segment4SJC: React.FC<Segment4SJCProps> = ({
                   </RadioGroup>
                   {touched.cutType && errors.cutType && (
                     <Typography color="error" variant="caption">
-                      {errors.cutType}
+                      {getFormikErrorText(errors.cutType)}
                     </Typography>
                   )}
                 </FormControl>
@@ -821,3 +822,4 @@ const Segment4SJC: React.FC<Segment4SJCProps> = ({
 };
 
 export default Segment4SJC;
+
