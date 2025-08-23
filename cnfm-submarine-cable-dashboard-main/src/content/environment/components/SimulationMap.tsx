@@ -325,7 +325,8 @@ const SimulationMap: React.FC<SimulationMapProps> = ({ selectedCable, mapRef: ex
         }}
       >
         <RemoveAttribution />
-        <ChangeView center={[18, 134]} zoom={3.5} />
+        {/* Only set initial view on first mount, not on every render */}
+        {/* <ChangeView center={[18, 134]} zoom={3.5} /> */}
         {/*<TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />*/}
         <TileLayer
           url={`https://maps.geoapify.com/v1/tile/klokantech-basic/{z}/{x}/{y}.png?apiKey=${mapApiKey}`}
@@ -412,10 +413,6 @@ const SimulationMap: React.FC<SimulationMapProps> = ({ selectedCable, mapRef: ex
           <IconButton
             sx={{ background: '#fff', boxShadow: 2 }}
             onClick={() => {
-              // Zoom out when toggling the deleted cable sidebar
-              if (mapRef.current) {
-                mapRef.current.setView([18, 134], 3.5, { animate: true });
-              }
               if (typeof (React as any).startTransition === 'function') {
                 (React as any).startTransition(() => {
                   setSidebarOpen((open) => !open);
