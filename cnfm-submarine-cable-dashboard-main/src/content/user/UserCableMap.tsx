@@ -861,7 +861,7 @@ const UserCableMap = React.memo<UserCableMapProps>(({ selectedCable, selectedCut
               top: 0,
               right: 0,
               height: '100%',
-              width: 360,
+              width: 330,
               zIndex: 1100,
               display: 'flex',
               flexDirection: 'column',

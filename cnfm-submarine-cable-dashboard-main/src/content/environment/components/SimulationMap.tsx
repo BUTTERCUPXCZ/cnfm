@@ -324,6 +324,7 @@ const SimulationMap: React.FC<SimulationMapProps> = ({ selectedCable, mapRef: ex
           }
         }}
       >
+        <ChangeView center={[18, 134]} zoom={4} />
         <RemoveAttribution />
         {/* Only set initial view on first mount, not on every render */}
         {/* <ChangeView center={[18, 134]} zoom={3.5} /> */}
