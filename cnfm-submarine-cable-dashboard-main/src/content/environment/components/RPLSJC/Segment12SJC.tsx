@@ -16,6 +16,7 @@ import { Formik, Form } from 'formik';
 import * as Yup from 'yup';
 import Swal from 'sweetalert2';
 import { getFormikErrorText, hasFormikError } from '../../../../utils/formikHelpers';
+import { useDeletedCables, useDeleteCable } from '../../../../hooks/useApi';
 
 // Define prop types for TypeScript
 interface Segment12SJCProps {
@@ -48,6 +49,11 @@ const Segment12SJC: React.FC<Segment12SJCProps> = ({
 
   // Replace context with local array state
   const [cuts, setCuts] = useState(existingCuts);
+
+  const { mutate: deleteCable } = useDeleteCable();
+  const { refetch: refetchDeletedCables } = useDeletedCables();
+
+  const cable = 'SJC';
 
   // Add refs to track component mount status and cleanup
   const isMountedRef = useRef(true);
@@ -648,6 +654,9 @@ const Segment12SJC: React.FC<Segment12SJCProps> = ({
           animate: true,
           duration: 0.5
         });
+        
+        // Refetch deleted cables to update the sidebar
+        refetchDeletedCables();
       }
     } catch (error) {
       if (!isMountedRef.current) return;
