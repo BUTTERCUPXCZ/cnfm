@@ -397,6 +397,10 @@ const DeletedCablesSidebar: React.FC<DeletedCablesSidebarProps> = ({
                 : 'N/A'
             }</td>
                         </tr>
+                        <tr>
+                            <td style="font-weight: bold; padding-bottom: 5px; color: #333;">Cable Type:</td>
+                            <td style="text-align: right; padding-bottom: 5px; color: #666; font-size: 11px;">${cable.cable_type || 'Unknown'}</td>
+                        </tr>
                     </table>
                 </div>
                 ${(isAdmin && isUser) ? `
@@ -780,9 +784,9 @@ const DeletedCablesSidebar: React.FC<DeletedCablesSidebarProps> = ({
                                                 })
                                                 : 'Date Unknown'}
                                         </Typography>
-                                        <Typography 
+                                        <Typography
                                             variant="body2"
-                                            sx={{color: '#444', mt: 0.2, fontSize: '12px'}}
+                                            sx={{ color: '#444', mt: 0.2, fontSize: '12px' }}
                                         >
                                             Depth: {cable.depth ? `${cable.depth}m` : 'Unknown'}
                                         </Typography>
