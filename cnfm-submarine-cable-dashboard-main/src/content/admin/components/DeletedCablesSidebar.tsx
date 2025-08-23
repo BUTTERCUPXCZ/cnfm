@@ -779,20 +779,24 @@ const DeletedCablesSidebar: React.FC<DeletedCablesSidebarProps> = ({
                                                     year: 'numeric'
                                                 })
                                                 : 'Date Unknown'}
-                                            {' — '}
+                                        </Typography>
+                                        <Typography 
+                                            variant="body2"
+                                            sx={{color: '#444', mt: 0.2, fontSize: '12px'}}
+                                        >
                                             Depth: {cable.depth ? `${cable.depth}m` : 'Unknown'}
                                         </Typography>
                                         <Typography
                                             variant="body2"
-                                            sx={{ color: '#444', mt: 0.2 }}
+                                            sx={{ color: '#444', mt: 0.2, fontSize: '12px' }}
                                         >
-                                            {cable.cut_type || 'Unknown'}
+                                            Cut Type: {cable.cut_type || 'Unknown'}
                                         </Typography>
                                         <Typography
                                             variant="body2"
-                                            sx={{ color: '#444', mt: 0.2 }}
+                                            sx={{ color: '#444', mt: 0.2, fontSize: '12px' }}
                                         >
-                                            {cable.cable_type || 'Unknown'}
+                                            Cable Type: {cable.cable_type || 'Unknown'}
                                         </Typography>
                                     </ListItem>
                                 ))
