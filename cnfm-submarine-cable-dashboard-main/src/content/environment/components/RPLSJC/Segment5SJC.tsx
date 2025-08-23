@@ -16,6 +16,7 @@ import { Formik, Form } from 'formik';
 import * as Yup from 'yup';
 import Swal from 'sweetalert2';
 import { getFormikErrorText, hasFormikError } from '../../../../utils/formikHelpers';
+import { useDeletedCables } from '../../../../hooks/useApi';
 
 // Define prop types for TypeScript
 interface Segment5SJCProps {
@@ -48,6 +49,9 @@ const Segment5SJC: React.FC<Segment5SJCProps> = ({
 
   // Replace context with local array state
   const [cuts, setCuts] = useState(existingCuts);
+
+  // Add deleted cables hook for refreshing after cuts
+  const { refetch: refetchDeletedCables } = useDeletedCables();
 
   // Add refs to track component mount status and cleanup
   const isMountedRef = useRef(true);
@@ -651,6 +655,15 @@ const Segment5SJC: React.FC<Segment5SJCProps> = ({
           animate: true,
           duration: 0.5
         });
+      }
+
+      // Refresh deleted cables list after successful cut
+      try {
+        await refetchDeletedCables();
+        console.log('Deleted cables list refreshed after successful cut');
+      } catch (refreshError) {
+        console.warn('Failed to refresh deleted cables list:', refreshError);
+        // Don't throw here - the cut was successful, refresh failure is not critical
       }
     } catch (error) {
       if (!isMountedRef.current) return;
