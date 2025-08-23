@@ -242,9 +242,6 @@ const CapacityCard: React.FC<{
             <Typography variant="h4" sx={{ fontWeight: 700, color: '#000000', mb: 2 }}>
                 {totalGbps} Gbps
             </Typography>
-        </Box>
-
-        <Box>
             <Typography
                 variant="body2"
                 sx={{
@@ -252,12 +249,12 @@ const CapacityCard: React.FC<{
                     fontSize: '12px',
                     textTransform: 'uppercase',
                     letterSpacing: 1,
-                    mb: 1
+                    mt: 1
                 }}
             >
                 AVERAGE UTILIZATION:
             </Typography>
-            <Typography variant="h5" sx={{ fontWeight: 600, color: '#000000' }}>
+            <Typography variant="h5" sx={{ fontWeight: 700, color: '#3854A5', mb: 1 }}>
                 {utilization}
             </Typography>
         </Box>
@@ -270,21 +267,11 @@ const SystemCard: React.FC<{
 }> = ({ system, onClick }) => (
     <Paper onClick={() => onClick(system)} sx={styles.systemCard(system.color)}>
         {/* System Header */}
-        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+        <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
             <Typography variant="h6" sx={{ fontWeight: 700, color: system.name === 'TGN-IA' ? '#000000' : system.color }}>
                 {system.name}
             </Typography>
-            <Chip
-                label={`${system.activeSegments}/${system.segments.length} active`}
-                size="medium"
-                sx={{
-                    fontSize: '12px',
-                    height: '20px',
-                    backgroundColor: system.activeSegments > 0 ? '#e8f5e8' : '#ffebee',
-                    color: system.activeSegments > 0 ? COLORS.success : COLORS.error
-                }}
-                icon={<SignalCellularAltIcon style={{ fontSize: '14px' }} />}
-            />
+            {/* Active chip removed as requested */}
         </Box>
 
         {/* System Statistics */}
@@ -301,39 +288,10 @@ const SystemCard: React.FC<{
                 color={system.color}
                 labelColor="#000000"
             />
-            <StatRow
-                label="Links Not Working:"
-                value={system.zeroUtilizationCount.toString()}
-                color={system.zeroUtilizationCount > 0 ? COLORS.error : COLORS.success}
-                labelColor="#000000"
-            />
+            {/* 'Links Not Working' row removed as requested */}
         </Box>
 
-        {/* Segments */}
-        <Box sx={{ mt: 2 }}>
-            <Typography
-                variant="body2"
-                sx={{
-                    color: COLORS.text.primary,
-                    fontSize: '11px',
-                    textTransform: 'uppercase',
-                    fontWeight: 600,
-                    letterSpacing: '1px',
-                    mb: 1,
-                    pb: 0.5,
-                    borderBottom: `1px solid ${system.color}30`
-                }}
-            >
-                Network Segments
-            </Typography>
-            {system.segments.map((segment, index) => (
-                <SegmentRow
-                    key={index}
-                    segment={segment}
-                    systemColor={system.color}
-                />
-            ))}
-        </Box>
+        {/* Network Segments section removed as requested */}
     </Paper>
 );
 

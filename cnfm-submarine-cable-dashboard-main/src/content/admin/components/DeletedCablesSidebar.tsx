@@ -257,8 +257,8 @@ const DeletedCablesSidebar: React.FC<DeletedCablesSidebarProps> = ({
         lastSelectedCableRef.current = cable.cut_id;
         isAnimatingRef.current = true;
 
-        // Start camera movement using flyTo (similar to Segment1SeaUS)
-        if (isAdmin && mapRef?.current && cable.latitude && cable.longitude) {
+        // Start camera movement using flyTo for both admin and user roles
+        if ((isAdmin || isUser) && mapRef?.current && cable.latitude && cable.longitude) {
             flyToLocation(cable);
         }
 
@@ -298,163 +298,7 @@ const DeletedCablesSidebar: React.FC<DeletedCablesSidebarProps> = ({
         console.log('Flying to cable location:', cable.cut_id, 'at coordinates:', cutPoint);
     };
 
-    const performSmoothCameraMovement = (cable: CableCut) => {
-        if (!mapRef?.current || !cable.latitude || !cable.longitude) {
-            console.error('Cannot perform camera movement: missing map reference or coordinates');
-            return;
-        }
 
-        const map = mapRef.current;
-        const targetLat = parseFloat(parseFloat(cable.latitude.toString()).toFixed(6));
-        const targetLng = parseFloat(parseFloat(cable.longitude.toString()).toFixed(6));
-        const targetPosition: [number, number] = [targetLat, targetLng];
-
-        if (targetLat < -90 || targetLat > 90 || targetLng < -180 || targetLng > 180) {
-            console.error('Invalid coordinates for smooth movement:', { targetLat, targetLng });
-            return;
-        }
-
-        const currentCenter = map.getCenter();
-        const currentZoom = map.getZoom();
-        const targetZoom = 13; // Much closer initial zoom for excellent X marker visibility
-
-        const distance = currentCenter.distanceTo(L.latLng(targetLat, targetLng));
-
-        map.stop();
-
-        let animationDuration: number;
-        let intermediateZoom: number;
-        let useMultiStageAnimation = false;
-
-        if (distance > 2000000) {
-            animationDuration = 3.5; // Slower, more cinematic
-            intermediateZoom = Math.min(currentZoom, 3); // Zoom out more for dramatic effect
-            useMultiStageAnimation = true;
-        } else if (distance > 500000) {
-            animationDuration = 2.8; // Slower transition
-            intermediateZoom = Math.min(currentZoom, 5);
-            useMultiStageAnimation = true;
-        } else if (distance > 100000) {
-            animationDuration = 2.2; // More leisurely pace
-            intermediateZoom = Math.min(currentZoom, 7);
-            useMultiStageAnimation = distance > 200000;
-        } else if (distance > 10000) {
-            animationDuration = 1.5; // Still smooth but faster
-            intermediateZoom = Math.max(currentZoom, 10);
-        } else {
-            animationDuration = 0.8; // Quick but smooth
-            intermediateZoom = currentZoom;
-        }
-
-        const mapContainer = map.getContainer();
-        const mapHeight = mapContainer.clientHeight;
-        const offsetY = mapHeight * 0.12;
-
-        const targetPoint = map.project(targetPosition, targetZoom);
-        const adjustedPoint = L.point(targetPoint.x, targetPoint.y - offsetY);
-        const finalCenter = map.unproject(adjustedPoint, targetZoom);
-
-        if (useMultiStageAnimation) {
-            // Multi-stage cinematic animation for very long distances
-            console.log('Starting cinematic multi-stage camera movement');
-
-            const intermediateLat = (currentCenter.lat + targetLat) / 2;
-            const intermediateLng = (currentCenter.lng + targetLng) / 2;
-
-            // Stage 1: Smooth zoom out and move to intermediate position
-            map.setView([intermediateLat, intermediateLng], intermediateZoom, {
-                animate: true,
-                duration: animationDuration * 0.35, // Slightly longer for smooth start
-                easeLinearity: 0.02 // Very smooth easing for cinematic effect
-            });
-
-            // Stage 2: Move closer to target area with smooth transition
-            const stage2Timeout = setTimeout(() => {
-                if (lastSelectedCableRef.current === cable.cut_id) {
-                    map.setView(targetPosition, intermediateZoom + 3, {
-                        animate: true,
-                        duration: animationDuration * 0.4, // Main movement phase
-                        easeLinearity: 0.05 // Smooth middle transition
-                    });
-                }
-            }, animationDuration * 350);
-            animationTimeoutsRef.current.push(stage2Timeout);
-
-            // Stage 3: Final cinematic zoom in to target with precise positioning
-            const stage3Timeout = setTimeout(() => {
-                if (lastSelectedCableRef.current === cable.cut_id) {
-                    map.setView([finalCenter.lat, finalCenter.lng], targetZoom, {
-                        animate: true,
-                        duration: animationDuration * 0.25, // Smooth finish
-                        easeLinearity: 0.1 // Gentle final approach
-                    });
-                }
-            }, animationDuration * 750);
-            animationTimeoutsRef.current.push(stage3Timeout);
-
-        } else {
-            // Enhanced single-stage smooth animation for shorter distances
-            console.log('Starting single-stage smooth camera movement');
-
-            if (currentZoom > intermediateZoom + 3) {
-                // Two-phase animation: zoom out then move and zoom in
-                map.setView(currentCenter, intermediateZoom, {
-                    animate: true,
-                    duration: animationDuration * 0.3,
-                    easeLinearity: 0.02 // Very smooth zoom out
-                });
-
-                const singleStageTimeout = setTimeout(() => {
-                    if (lastSelectedCableRef.current === cable.cut_id) {
-                        map.setView([finalCenter.lat, finalCenter.lng], targetZoom, {
-                            animate: true,
-                            duration: animationDuration * 0.7,
-                            easeLinearity: 0.08 // Smooth approach to target
-                        });
-                    }
-                }, animationDuration * 300);
-                animationTimeoutsRef.current.push(singleStageTimeout);
-
-            } else {
-                // Single smooth movement to target
-                map.setView([finalCenter.lat, finalCenter.lng], targetZoom, {
-                    animate: true,
-                    duration: animationDuration,
-                    easeLinearity: 0.05 // Smooth single movement
-                });
-            }
-        }
-
-        // Verify final position after cinematic animation completes
-        const verificationTimeout = setTimeout(() => {
-            if (lastSelectedCableRef.current === cable.cut_id) {
-                const finalActualCenter = map.getCenter();
-                const finalActualZoom = map.getZoom();
-                console.log('Cinematic camera movement completed:', {
-                    cableId: cable.cut_id,
-                    targetPosition,
-                    finalCenter: [finalCenter.lat, finalCenter.lng],
-                    actualCenter: [finalActualCenter.lat, finalActualCenter.lng],
-                    targetZoom,
-                    actualZoom: finalActualZoom
-                });
-
-                // Fine-tune position if needed (without animation for final precision)
-                const finalDistance = finalActualCenter.distanceTo(L.latLng(finalCenter.lat, finalCenter.lng));
-                if (finalDistance > 100) {
-                    console.log('Fine-tuning final camera position for cable:', cable.cut_id);
-                    map.setView([finalCenter.lat, finalCenter.lng], targetZoom, {
-                        animate: false // Instant final correction
-                    });
-                }
-
-                // Reset animation flag when movement is complete
-                isAnimatingRef.current = false;
-                console.log('Camera movement completed and animation flag reset for cable:', cable.cut_id);
-            }
-        }, (animationDuration * 1000) + 200); // Longer buffer for cinematic timing
-        animationTimeoutsRef.current.push(verificationTimeout);
-    };
 
     const createMapMarker = (cable: CableCut) => {
         if (!mapRef?.current || !cable.latitude || !cable.longitude) {
@@ -831,19 +675,10 @@ const DeletedCablesSidebar: React.FC<DeletedCablesSidebarProps> = ({
                     >
                         <CloseIcon sx={{ fontSize: 28 }} />
                     </IconButton>
-                    <Typography variant="h6" sx={{ fontWeight: 700, color: '#3854A5', flex: 1, textAlign: 'center' }}>
+                    <Typography variant="h5" sx={{ fontWeight: 700, color: '#3854A5', textAlign: 'left' }}>
                         Active Cable Faults
                     </Typography>
-                    <Button
-                        variant="contained"
-                        size="small"
-                        onClick={fetchDeletedCables}
-                        disabled={loading}
-                        startIcon={<RefreshIcon />}
-                        sx={{ textTransform: 'none' }}
-                    >
-                        Refresh
-                    </Button>
+
                 </Box>
 
                 <Divider sx={{ mb: 1 }} />

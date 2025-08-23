@@ -30,7 +30,10 @@ const validationSchema = Yup.object({
     .required('Distance value is required')
     .min(0.02, 'Distance out of bounds (BMH Piti)')
     .max(2513.416, 'Distance cannot exceed BU Davao City'),
-  cutType: Yup.string().required('Cut type selection is required')
+  cutType: Yup.string().required('Cut type selection is required'),
+  faultDate: Yup.date()
+    .required('Fault date is required')
+    .typeError('Please enter a valid date')
 });
 
 const Segment3SeaUS: React.FC<Segment3SeaUSProps> = ({
@@ -361,15 +364,15 @@ const Segment3SeaUS: React.FC<Segment3SeaUSProps> = ({
     if (!beforeCut || !afterCut) {
       return beforeCut
         ? [
-            parseFloat(beforeCut.full_latitude),
-            parseFloat(beforeCut.full_longitude)
-          ]
+          parseFloat(beforeCut.full_latitude),
+          parseFloat(beforeCut.full_longitude)
+        ]
         : afterCut
-        ? [
+          ? [
             parseFloat(afterCut.full_latitude),
             parseFloat(afterCut.full_longitude)
           ]
-        : null;
+          : null;
     }
 
     const beforePoint = [
@@ -433,9 +436,8 @@ const Segment3SeaUS: React.FC<Segment3SeaUSProps> = ({
   const createPopupContent = (cut, markerStyle, cutPoint, depth) => {
     return `
         <div class="cable-cut-popup" style="font-family: Arial, sans-serif; width: 250px; box-shadow: 0 2px 5px rgba(0,0,0,0.2); border-radius: 4px; overflow: hidden;">
-          <div style="background-color: ${
-            markerStyle.color
-          }; color: white; padding: 8px; text-align: center; font-weight: bold; font-size: 14px; letter-spacing: 0.5px;">
+          <div style="background-color: ${markerStyle.color
+      }; color: white; padding: 8px; text-align: center; font-weight: bold; font-size: 14px; letter-spacing: 0.5px;">
             ${cut.cutType.toUpperCase()}
           </div>
           <div style="background-color: white; padding: 12px;">
@@ -443,8 +445,8 @@ const Segment3SeaUS: React.FC<Segment3SeaUSProps> = ({
               <tr>
                 <td style="font-weight: bold; padding-bottom: 8px;">Distance:</td>
                 <td style="text-align: right; padding-bottom: 8px;">${Number(
-                  cut.distance
-                ).toFixed(3)} km</td>
+        cut.distance
+      ).toFixed(3)} km</td>
               </tr>
               <tr>
                 <td style="font-weight: bold; padding-bottom: 8px;">Depth:</td>
@@ -452,15 +454,13 @@ const Segment3SeaUS: React.FC<Segment3SeaUSProps> = ({
               </tr>
               <tr>
                 <td style="font-weight: bold; padding-bottom: 8px;">Latitude:</td>
-                <td style="text-align: right; padding-bottom: 8px;">${
-                  cutPoint ? Number(cutPoint[0]).toFixed(6) : ''
-                }</td>
+                <td style="text-align: right; padding-bottom: 8px;">${cutPoint ? Number(cutPoint[0]).toFixed(6) : ''
+      }</td>
               </tr>
               <tr>
                 <td style="font-weight: bold; padding-bottom: 8px;">Longitude:</td>
-                <td style="text-align: right; padding-bottom: 8px;">${
-                  cutPoint ? Number(cutPoint[1]).toFixed(6) : ''
-                }</td>
+                <td style="text-align: right; padding-bottom: 8px;">${cutPoint ? Number(cutPoint[1]).toFixed(6) : ''
+      }</td>
               </tr>
             </table>
             <div style="font-size: 11px; color: #777; text-align: right; margin-top: 8px; font-style: italic;">
@@ -685,18 +685,6 @@ const Segment3SeaUS: React.FC<Segment3SeaUSProps> = ({
     }
   };
 
-  const getCutTypeDescription = (cutType) => {
-    const descriptions = {
-      'Shunt Fault':
-        'Gradual damage from environmental friction. Progressive service degradation.',
-      'Partial Fiber Break':
-        '50% damage to cable fibers. Partial service degradation.',
-      'Fiber Break': '100% damage to cable. Complete service loss.',
-      'Full Cut':
-        'Damage from ship anchor. Service affected along dragged path.'
-    };
-    return descriptions[cutType] || '';
-  };
 
   return (
     <Box>
@@ -793,11 +781,6 @@ const Segment3SeaUS: React.FC<Segment3SeaUSProps> = ({
                 </FormControl>
               </Box>
 
-              <Box sx={{ mt: 0 }}>
-                <Typography variant="body2" color="text.secondary">
-                  {getCutTypeDescription(values.cutType)}
-                </Typography>
-              </Box>
 
               <DialogActions>
                 <Button
