@@ -153,7 +153,7 @@ app.post('/cable-cuts', async (req, res) => {
     // Cable_type lookup using same logic as depth calculation from frontend
     if (source_table || (cable && segment)) {
       const tableName = source_table || `${cable.replace('-', '_')}_rpl_${segment}`;
-      
+
       try {
         // Find the closest rows before and after the cut distance (same logic as frontend)
         const lookupQuery = `
@@ -163,19 +163,19 @@ app.post('/cable-cuts', async (req, res) => {
           ORDER BY ABS(cable_cumulative_total - ?)
           LIMIT 2
         `;
-        
+
         const result = await new Promise((resolve, reject) => {
           db.query(lookupQuery, [distance], (err, results) => {
             if (err) reject(err);
             else resolve(results);
           });
         });
-        
+
         if (result && result.length > 0) {
           // Use same logic as frontend: beforeCut?.cable_type || afterCut?.cable_type
           const closest = result[0];
           const secondClosest = result[1];
-          
+
           cable_type = closest?.cable_type || secondClosest?.cable_type || null;
         }
       } catch (err) {
@@ -1360,7 +1360,7 @@ app.post('/upload-rpl/:cable/:segment', upload.single('file'), (req, res) => {
         // Simple cable_type inheritance: copy from preceding row
         for (let i = 1; i < results.length; i++) {
           if (!results[i].cable_type || results[i].cable_type.trim() === '') {
-            results[i].cable_type = results[i-1].cable_type || '';
+            results[i].cable_type = results[i - 1].cable_type || '';
           }
         }
 
