@@ -657,7 +657,7 @@ const Segment5SeaUS: React.FC<Segment5SeaUSProps> = ({
           animate: true,
           duration: 0.5
         });
-        
+
         // Refetch deleted cables to update the sidebar
         refetchDeletedCables();
       }
