@@ -123,79 +123,79 @@ const CutTGNIA: React.FC<CutTGNIAProps> = ({ handleClose }) => {
   // Only render the button if the container ref is available
   return buttonContainerRef.current
     ? ReactDOM.createPortal(
-        <>
-          <Button
-            variant="contained"
-            sx={{
-              backgroundColor: '#e6d600',
-              fontSize: '12px',
-              '&:hover': {
-                backgroundColor: '#c2b400'
-              }
-            }}
-            startIcon={<ContentCutIcon />}
-            onClick={handleOpen}
-          >
-            Cut TGN-IA Cable
-          </Button>
+      <>
+        <Button
+          variant="contained"
+          sx={{
+            backgroundColor: '#e6d600',
+            fontSize: '12px',
+            '&:hover': {
+              backgroundColor: '#c2b400'
+            }
+          }}
+          startIcon={<ContentCutIcon />}
+          onClick={handleOpen}
+        >
+          Cut TGN-IA Cable
+        </Button>
 
-          {/* Modal Dialog */}
-          <Dialog
-            open={open}
-            onClose={handleDialogClose}
-            maxWidth="sm"
-            fullWidth
-          >
-            <DialogTitle sx={{ mt: 3 }}>
-              <Typography variant="h5">Simulate TGN-IA Cable Cut</Typography>
-            </DialogTitle>
-            <Divider />
-            <CardContent>
-              <Box sx={{ width: '100%' }}>
-                <FormControl fullWidth sx={{ mb: 2 }}>
-                  <InputLabel id="segment-select-label">
-                    Select Segment
-                  </InputLabel>
-                  <Select
-                    labelId="segment-select-label"
-                    id="segment-select"
-                    value={selectedSegment}
-                    label="Select Segment"
-                    onChange={handleSegmentChange}
-                  >
-                    <MenuItem value={1}>Segment 1 | Tenah Merah - BU1</MenuItem>
-                    <MenuItem value={2}>Segment 2 | BU1 - BU2</MenuItem>
-                    <MenuItem value={3}>Segment 3 | BU2 - BU3</MenuItem>
-                    <MenuItem value={4}>Segment 4 | BU3 - BU4</MenuItem>
-                    <MenuItem value={5}>Segment 5 | BU4 - BU5</MenuItem>
-                    <MenuItem value={6}>Segment 6 | BU5 - BU6</MenuItem>
-                    <MenuItem value={7}>
-                      Segment 7 | Malaysia Stub (Clump Weight - BU1)
-                    </MenuItem>
-                    <MenuItem value={8}>Segment 8 | Vung Tau - BU2</MenuItem>
-                    <MenuItem value={9}>
-                      Segment 9 | Deep Water Bay - BU3
-                    </MenuItem>
-                    <MenuItem value={10}>
-                      Segment 10 | Ballesteros - BU4
-                    </MenuItem>
-                    <MenuItem value={11}>
-                      Segment 11 | China Stub (Clump Weight - BU5)
-                    </MenuItem>
-                    <MenuItem value={12}>
-                      Segment 12 | TGN G2 Stub (BU7 - Clump Weight)
-                    </MenuItem>
-                  </Select>
-                </FormControl>
+        {/* Modal Dialog */}
+        <Dialog
+          open={open}
+          onClose={handleDialogClose}
+          maxWidth="sm"
+          fullWidth
+        >
+          <DialogTitle sx={{ mt: 3 }}>
+            <Typography variant="h5">Simulate TGN-IA Cable Fault</Typography>
+          </DialogTitle>
+          <Divider />
+          <CardContent>
+            <Box sx={{ width: '100%' }}>
+              <FormControl fullWidth sx={{ mb: 2 }}>
+                <InputLabel id="segment-select-label">
+                  Select Segment
+                </InputLabel>
+                <Select
+                  labelId="segment-select-label"
+                  id="segment-select"
+                  value={selectedSegment}
+                  label="Select Segment"
+                  onChange={handleSegmentChange}
+                >
+                  <MenuItem value={1}>Segment 1 | Tenah Merah - BU1</MenuItem>
+                  <MenuItem value={2}>Segment 2 | BU1 - BU2</MenuItem>
+                  <MenuItem value={3}>Segment 3 | BU2 - BU3</MenuItem>
+                  <MenuItem value={4}>Segment 4 | BU3 - BU4</MenuItem>
+                  <MenuItem value={5}>Segment 5 | BU4 - BU5</MenuItem>
+                  <MenuItem value={6}>Segment 6 | BU5 - BU6</MenuItem>
+                  <MenuItem value={7}>
+                    Segment 7 | Malaysia Stub (Clump Weight - BU1)
+                  </MenuItem>
+                  <MenuItem value={8}>Segment 8 | Vung Tau - BU2</MenuItem>
+                  <MenuItem value={9}>
+                    Segment 9 | Deep Water Bay - BU3
+                  </MenuItem>
+                  <MenuItem value={10}>
+                    Segment 10 | Ballesteros - BU4
+                  </MenuItem>
+                  <MenuItem value={11}>
+                    Segment 11 | China Stub (Clump Weight - BU5)
+                  </MenuItem>
+                  <MenuItem value={12}>
+                    Segment 12 | TGN G2 Stub (BU7 - Clump Weight)
+                  </MenuItem>
+                </Select>
+              </FormControl>
 
-                {/* Render the selected segment component */}
-                {renderSegmentComponent()}
-              </Box>
-            </CardContent>
-          </Dialog>
-        </>,
-        buttonContainerRef.current
-      )
+              {/* Render the selected segment component */}
+              {renderSegmentComponent()}
+            </Box>
+          </CardContent>
+        </Dialog>
+      </>,
+      buttonContainerRef.current
+    )
     : null;
 };
 

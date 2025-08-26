@@ -122,93 +122,93 @@ const CutSJC: React.FC<CutSJCProps> = ({ handleClose }) => {
   // Only render the button if the container ref is available
   return buttonContainerRef.current
     ? ReactDOM.createPortal(
-        <>
-          <Button
-            variant="contained"
-            sx={{
-              backgroundColor: '#0047FF',
-              fontSize: '15px',
-              '&:hover': {
-                backgroundColor: '#0035C2'
-              }
-            }}
-            startIcon={<ContentCutIcon />}
-            onClick={handleOpen}
-          >
-            Cut SJC Cable
-          </Button>
+      <>
+        <Button
+          variant="contained"
+          sx={{
+            backgroundColor: '#0047FF',
+            fontSize: '15px',
+            '&:hover': {
+              backgroundColor: '#0035C2'
+            }
+          }}
+          startIcon={<ContentCutIcon />}
+          onClick={handleOpen}
+        >
+          Cut SJC Cable
+        </Button>
 
-          {/* Modal Dialog */}
-          <Dialog
-            open={open}
-            onClose={handleDialogClose}
-            maxWidth="sm"
-            fullWidth
-          >
-            <DialogTitle sx={{ mt: 3 }}>
-              <Typography variant="h5">Simulate SJC Cable Cut</Typography>
-            </DialogTitle>
-            <Divider />
-            <CardContent>
-              <Box sx={{ width: '100%' }}>
-                <FormControl fullWidth sx={{ mb: 2 }}>
-                  <InputLabel id="segment-select-label">
-                    Select Segment
-                  </InputLabel>
-                  <Select
-                    labelId="segment-select-label"
-                    id="segment-select"
-                    value={selectedSegment}
-                    label="Select Segment"
-                    onChange={handleSegmentChange}
-                  >
-                    <MenuItem value={1}>
-                      Segment 1 | Tuas - Lay Interface
-                    </MenuItem>
-                    <MenuItem value={3}>
-                      Segment 3 | Lay Interface - Songkhla BU (BU2)
-                    </MenuItem>
-                    <MenuItem value={4}>
-                      Segment 4 | Stubbed Cable End - Songkhla BU (BU2)
-                    </MenuItem>
-                    <MenuItem value={5}>
-                      Segment 5 | Songkhla BU (BU2) - Telisai BU (BU3)
-                    </MenuItem>
-                    <MenuItem value={6}>
-                      Segment 6 | Telisai - Telisai BU (BU3)
-                    </MenuItem>
-                    <MenuItem value={7}>
-                      Segment 7 | Telisai BU (BU3) - Nasugbu BU (BU4)
-                    </MenuItem>
-                    <MenuItem value={8}>
-                      Segment 8 | Nasugbu - Nasugbu BU (BU4)
-                    </MenuItem>
-                    <MenuItem value={9}>
-                      Segment 9 | Nasugbu BU (BU4) - Chung Hom Kok BU (BU5){' '}
-                    </MenuItem>
-                    <MenuItem value={10}>
-                      Segment 10 | Chung Hom Kok - Chung Hom Kok (BU5)
-                    </MenuItem>
-                    <MenuItem value={11}>
-                      Segment 11 | Shantou BU (BU6) - Chung Hom Kok BU (BU5)
-                    </MenuItem>
-                    <MenuItem value={12}>
-                      Segment 12 | Shantou - Shantou BU (BU6)
-                    </MenuItem>
-                    <MenuItem value={13}>
-                      Segment 13 | Chikura - Shantou BU (BU6)
-                    </MenuItem>
-                  </Select>
-                </FormControl>
+        {/* Modal Dialog */}
+        <Dialog
+          open={open}
+          onClose={handleDialogClose}
+          maxWidth="sm"
+          fullWidth
+        >
+          <DialogTitle sx={{ mt: 3 }}>
+            <Typography variant="h5">Simulate SJC Cable Fault</Typography>
+          </DialogTitle>
+          <Divider />
+          <CardContent>
+            <Box sx={{ width: '100%' }}>
+              <FormControl fullWidth sx={{ mb: 2 }}>
+                <InputLabel id="segment-select-label">
+                  Select Segment
+                </InputLabel>
+                <Select
+                  labelId="segment-select-label"
+                  id="segment-select"
+                  value={selectedSegment}
+                  label="Select Segment"
+                  onChange={handleSegmentChange}
+                >
+                  <MenuItem value={1}>
+                    Segment 1 | Tuas - Lay Interface
+                  </MenuItem>
+                  <MenuItem value={3}>
+                    Segment 3 | Lay Interface - Songkhla BU (BU2)
+                  </MenuItem>
+                  <MenuItem value={4}>
+                    Segment 4 | Stubbed Cable End - Songkhla BU (BU2)
+                  </MenuItem>
+                  <MenuItem value={5}>
+                    Segment 5 | Songkhla BU (BU2) - Telisai BU (BU3)
+                  </MenuItem>
+                  <MenuItem value={6}>
+                    Segment 6 | Telisai - Telisai BU (BU3)
+                  </MenuItem>
+                  <MenuItem value={7}>
+                    Segment 7 | Telisai BU (BU3) - Nasugbu BU (BU4)
+                  </MenuItem>
+                  <MenuItem value={8}>
+                    Segment 8 | Nasugbu - Nasugbu BU (BU4)
+                  </MenuItem>
+                  <MenuItem value={9}>
+                    Segment 9 | Nasugbu BU (BU4) - Chung Hom Kok BU (BU5){' '}
+                  </MenuItem>
+                  <MenuItem value={10}>
+                    Segment 10 | Chung Hom Kok - Chung Hom Kok (BU5)
+                  </MenuItem>
+                  <MenuItem value={11}>
+                    Segment 11 | Shantou BU (BU6) - Chung Hom Kok BU (BU5)
+                  </MenuItem>
+                  <MenuItem value={12}>
+                    Segment 12 | Shantou - Shantou BU (BU6)
+                  </MenuItem>
+                  <MenuItem value={13}>
+                    Segment 13 | Chikura - Shantou BU (BU6)
+                  </MenuItem>
+                </Select>
+              </FormControl>
 
-                {/* Render the selected segment component */}
-                {renderSegmentComponent()}
-              </Box>
-            </CardContent>
-          </Dialog>
-        </>,
-        buttonContainerRef.current
-      )
+              {/* Render the selected segment component */}
+              {renderSegmentComponent()}
+            </Box>
+          </CardContent>
+        </Dialog>
+      </>,
+      buttonContainerRef.current
+    )
     : null;
 };
 
