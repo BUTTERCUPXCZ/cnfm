@@ -37,22 +37,20 @@ function AdminDashboard() {
       const response = await fetch(`${apiBaseUrl}${port}/latest-update`);
       const data = await response.json();
 
-      if (data?.update?.date_time) {
+      if (data?.update?.date_time && data.update.file_name) {
         const fileName = data.update.file_name;
-
-        // ✅ Remove .csv extension for display
-        const displayName = fileName
-          ? fileName.replace(/\.csv$/i, '')
-          : fileName;
-
+        // Fix: Remove both '.csv' and 'csv' at the end
+        const displayName = fileName.replace(/\.?csv$/i, '');
         setLastUpdate(displayName);
         return true;
       } else {
+        // Do NOT clear lastUpdate if no data is found
         console.log('No update timestamp received');
         return false;
       }
     } catch (err) {
       console.error('Error fetching latest update:', err);
+      // Do NOT clear lastUpdate on error
       return false;
     }
   }, [apiBaseUrl, port]);
@@ -127,8 +125,10 @@ function AdminDashboard() {
       if (response.ok) {
         await Swal.fire('Success', 'File uploaded successfully', 'success');
 
-        // ✅ Refetch the latest update after successful upload
-        await fetchLastUpdate();
+        // Add a delay before fetching the latest update
+        setTimeout(async () => {
+          await fetchLastUpdate();
+        }, 1500); // 1.5 seconds delay
       } else {
         throw new Error(data.message || 'Upload failed');
       }

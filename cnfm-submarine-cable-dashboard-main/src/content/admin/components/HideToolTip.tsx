@@ -209,10 +209,10 @@ const a11yProps = (index: number) => ({
 // Chart Component Mapper
 const renderChartComponent = (systemName: string, segmentIndex: number) => {
     const chartMap: Record<string, React.ComponentType[]> = {
-        'TGN-IA': [TGNSingapore, TGNHongkong, TGNJapan],
-        'SJC': [SJCSingapore, SJCHongkong, SJCJapan],
+        'TGN-IA': [TGNHongkong, TGNJapan, TGNSingapore],
+        'SJC': [SJCHongkong, SJCJapan, SJCSingapore],
         'SEA-US': [Seattle, LosAngeles],
-        'C2C': [C2CSingapore, C2CHongkong, C2CJapan]
+        'C2C': [C2CHongkong, C2CJapan, C2CSingapore]
     };
 
     const ChartComponent = chartMap[systemName]?.[segmentIndex];
