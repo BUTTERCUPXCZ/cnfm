@@ -269,7 +269,7 @@ function RPLTGNIA11() {
 
   // Define polyline path options based on hover state
   const getPathOptions = () => {
-     const baseColor = '#FFFF00';
+    const baseColor = '#FFFF00';
 
     if (isHovered) {
       return {
@@ -353,14 +353,29 @@ function RPLTGNIA11() {
       />
 
       {/* Dynamic Markers from API with minimum zoom of 5 */}
-      {markers.map((marker, index) => (
-        <DynamicMarker
-          key={`marker-${index}`}
-          position={[marker.latitude, marker.longitude] as [number, number]}
-          label={marker.label}
-          minZoom={8} // Set minimum zoom level to 5
-        />
-      ))}
+      {markers.map((marker, index) => {
+        const isBU = typeof marker.label === 'string' && marker.label.includes('BU');
+        const icon = isBU ? (function () {
+          const size = 16;
+          const svg = `
+            <svg width="${size}" height="${size}" viewBox="0 0 ${size} ${size}" xmlns="http://www.w3.org/2000/svg" style="transform: translateY(6px); display: block;">
+              <polygon points="${size / 2},0 ${size},${size} 0,${size}" fill="orange" stroke="black" stroke-width="1" />
+            </svg>
+          `;
+
+          return L.divIcon({ html: svg, className: 'triangle-marker', iconSize: [size, size], iconAnchor: [Math.round(size / 2), size] });
+        })() : undefined;
+
+        return (
+          <DynamicMarker
+            key={`marker-${index}`}
+            position={[marker.latitude, marker.longitude] as [number, number]}
+            label={marker.label}
+            icon={icon}
+            minZoom={8}
+          />
+        );
+      })}
       {/* Define Cable Modal Dialog */}
       <Dialog
         open={defineCableOpen}

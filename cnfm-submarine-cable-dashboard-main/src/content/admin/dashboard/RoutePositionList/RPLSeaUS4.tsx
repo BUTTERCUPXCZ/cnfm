@@ -245,6 +245,24 @@ function RPLSeaUS4() {
   const handleOpenDefine = () => setDefineCableOpen(true);
   const handleCloseDefine = () => setDefineCableOpen(false);
 
+  // Helper to create a small SVG triangle DivIcon for 'BU' markers
+  const createTriangleIcon = (color = 'gray') => {
+    const size = 16;
+    // move the triangle a few pixels down so it sits slightly below the geo-coordinate
+    const svg = `
+      <svg width="${size}" height="${size}" viewBox="0 0 ${size} ${size}" xmlns="http://www.w3.org/2000/svg" style="transform: translateY(6px); display: block;">
+        <polygon points="${size / 2},0 ${size},${size} 0,${size}" fill="${color}" stroke="black" stroke-width="1" />
+      </svg>
+    `;
+
+    return L.divIcon({
+      html: svg,
+      className: 'triangle-marker',
+      iconSize: [size, size],
+      iconAnchor: [Math.round(size / 2), size]
+    });
+  };
+
   // Define polyline path options based on hover state
   const getPathOptions = () => {
     const baseColor = stats.avgUtilization > 0 ? 'green' : 'red';
@@ -331,14 +349,20 @@ function RPLSeaUS4() {
       />
 
       {/* Dynamic Markers */}
-      {markers.map((marker, index) => (
-        <DynamicMarker
-          key={`marker-${index}`}
-          position={[marker.latitude, marker.longitude] as [number, number]}
-          label={marker.label}
-          minZoom={8}
-        />
-      ))}
+      {markers.map((marker, index) => {
+        const isBU = typeof marker.label === 'string' && marker.label.includes('BU');
+        const icon = isBU ? createTriangleIcon('orange') : undefined;
+
+        return (
+          <DynamicMarker
+            key={`marker-${index}`}
+            position={[marker.latitude, marker.longitude] as [number, number]}
+            label={marker.label}
+            icon={icon}
+            minZoom={8}
+          />
+        );
+      })}
 
       {/* Define Cable Modal Dialog */}
       <Dialog
