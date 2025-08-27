@@ -589,6 +589,9 @@ const CableMap: React.FC<CableMapProps> = ({ selectedCable, selectedCutType, map
             <HongkongMarker />
             <SingaporeMarker />
 
+            {/* C2C Cable - Rendered first to appear behind other cables */}
+            <C2C />
+
             {/* Route position lists */}
             <RPLSeaUS1 />
             <RPLSeaUS2 />
@@ -620,7 +623,6 @@ const CableMap: React.FC<CableMapProps> = ({ selectedCable, selectedCutType, map
             <RPLTGNIA10 />
             <RPLTGNIA11 />
             <RPLTGNIA12 />
-            <C2C />
             <SimulationButton />
 
             {selectedCable && selectedCutType && (

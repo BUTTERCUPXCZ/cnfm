@@ -928,6 +928,11 @@ const UserCableMap = React.memo<UserCableMapProps>(({ selectedCable, selectedCut
               <SingaporeMarker />
             </Suspense>
 
+            {/* C2C Cable - Rendered first to appear behind other cables */}
+            <Suspense fallback={null}>
+              <C2C />
+            </Suspense>
+
             {/* Route Components - Lazy loaded and grouped by system for optimal performance */}
             <Suspense fallback={null}>
               <SeaUSRoutes />
@@ -939,10 +944,6 @@ const UserCableMap = React.memo<UserCableMapProps>(({ selectedCable, selectedCut
 
             <Suspense fallback={null}>
               <TGNIARoutes />
-            </Suspense>
-
-            <Suspense fallback={null}>
-              <C2C />
             </Suspense>
 
             {/* Custom deleted cable popup removed - functionality now handled by DeletedCablesSidebar */}
