@@ -155,12 +155,16 @@ app.post('/cable-cuts', async (req, res) => {
       const tableName = source_table || `${cable.replace('-', '_')}_rpl_${segment}`;
 
       try {
+        // Determine the correct column name based on the table type
+        const isTgnTable = tableName.startsWith('tgnia_');
+        const distanceColumn = isTgnTable ? 'cable_cumm' : 'cable_cumulative_total';
+        
         // Find the closest rows before and after the cut distance (same logic as frontend)
         const lookupQuery = `
-          SELECT cable_type, cable_cumulative_total 
+          SELECT cable_type, ${distanceColumn} as distance_value
           FROM ${tableName} 
-          WHERE cable_cumulative_total IS NOT NULL
-          ORDER BY ABS(cable_cumulative_total - ?)
+          WHERE ${distanceColumn} IS NOT NULL
+          ORDER BY ABS(${distanceColumn} - ?)
           LIMIT 2
         `;
 
