@@ -359,6 +359,10 @@ const SimulationMap: React.FC<SimulationMapProps> = ({ selectedCable, mapRef: ex
         <JapanMarker />
         <HongkongMarker />
         <SingaporeMarker />
+        
+        {/* C2C Cable - Rendered first to appear behind other cables */}
+        <C2C />
+        
         <RPLSeaUS1 />
         <RPLSeaUS2 />
         <RPLSeaUS3 />
@@ -389,7 +393,6 @@ const SimulationMap: React.FC<SimulationMapProps> = ({ selectedCable, mapRef: ex
         <RPLTGNIA10 />
         <RPLTGNIA11 />
         <RPLTGNIA12 />
-        <C2C />
         <ReturnButton />
         <CutSeaUS />
         <CutSJC />
