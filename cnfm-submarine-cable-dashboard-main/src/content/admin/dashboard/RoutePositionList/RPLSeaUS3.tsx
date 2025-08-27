@@ -211,8 +211,8 @@ function RPLSeaUS3() {
               const hasEvent =
                 (item.event && typeof item.event === 'string' &&
                   (item.event.includes('BMH') ||
-                  item.event.includes('BU') ||
-                  item.event.includes('S3R'))) ||  // <-- Added S3R here
+                    item.event.includes('BU') ||
+                    item.event.includes('S3R'))) ||  // <-- Added S3R here
                 (item.repeater && typeof item.repeater === 'string' &&
                   item.repeater.includes('S3R'));  // <-- Added repeater check
 

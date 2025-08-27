@@ -386,17 +386,17 @@ const DeletedCablesSidebar: React.FC<DeletedCablesSidebarProps> = ({
                             <td style="font-weight: bold; padding-bottom: 5px; color: #333;">Lng:</td>
                             <td style="text-align: right; padding-bottom: 5px; color: #666; font-family: monospace; font-size: 11px;">${lng.toFixed(4)}</td>
                         </tr>
-                        <tr>
-                            <td style="font-weight: bold; padding-bottom: 5px; color: #333;">Date:</td>
-                            <td style="text-align: right; padding-bottom: 5px; color: #666; font-size: 11px;">${cable.fault_date
+                                <tr>
+                                    <td style="font-weight: bold; padding-bottom: 5px; color: #333;">Date:</td>
+                                    <td style="text-align: right; padding-bottom: 5px; color: #666; font-size: 11px;">${cable.fault_date
                 ? new Date(cable.fault_date).toLocaleDateString('en-US', {
                     month: 'short',
                     day: 'numeric',
-                    year: '2-digit'
+                    year: 'numeric'
                 })
                 : 'N/A'
             }</td>
-                        </tr>
+                                </tr>
                         <tr>
                             <td style="font-weight: bold; padding-bottom: 5px; color: #333;">Cable Type:</td>
                             <td style="text-align: right; padding-bottom: 5px; color: #666; font-size: 11px;">${cable.cable_type || 'Unknown'}</td>
@@ -715,7 +715,7 @@ const DeletedCablesSidebar: React.FC<DeletedCablesSidebarProps> = ({
                     >
                         {loading ? (
                             <Typography variant="body2" color="text.secondary" sx={{ fontStyle: 'italic', px: 2 }}>
-                                Loading deleted cables...
+                                Loading cable faults...
                             </Typography>
                         ) : error ? (
                             <Typography variant="body2" color="error" sx={{ fontStyle: 'italic', px: 2 }}>
@@ -723,7 +723,7 @@ const DeletedCablesSidebar: React.FC<DeletedCablesSidebarProps> = ({
                             </Typography>
                         ) : deletedCables.length === 0 ? (
                             <Typography variant="body2" color="text.secondary" sx={{ fontStyle: 'italic', px: 2 }}>
-                                No deleted cables yet.
+                                No cable faults yet.
                             </Typography>
                         ) : (
                             [...deletedCables]

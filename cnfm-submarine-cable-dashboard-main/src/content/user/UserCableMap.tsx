@@ -7,6 +7,14 @@ import 'leaflet/dist/leaflet.css';
 import { useEffect, useRef, useState, useCallback, useMemo, lazy, Suspense } from 'react';
 import L from 'leaflet';
 import React from 'react';
+// TanStack Query hooks
+import {
+  useDataSummary,
+  useIpopUtilization,
+  useLastUpdate,
+  useDeleteCable,
+  usePrefetchData
+} from '../../hooks/useApi';
 
 // Lazy load heavy components for better performance
 const DeletedCablesSidebar = lazy(() => import('../admin/components/DeletedCablesSidebar'));
@@ -312,6 +320,45 @@ const UserCableMap = React.memo<UserCableMapProps>(({ selectedCable, selectedCut
   const ipopFetchIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const mountedRef = useRef(true);
 
+  // Determine if an administrator is logged in so we can enable admin-only UI
+  const isAdminLoggedIn = useMemo(() => {
+    try {
+      const loggedIn = localStorage.getItem('loggedIn') === 'true';
+      const role = localStorage.getItem('user_role');
+      return !!loggedIn && !!role && role.toLowerCase() === 'administrator';
+    } catch (err) {
+      return false;
+    }
+  }, []);
+
+  // TanStack Query hooks for shared data and mutations
+  const {
+    data: statsData,
+    isLoading: isStatsLoading,
+    error: statsError,
+    refetch: refetchStats
+  } = useDataSummary();
+
+  const {
+    data: ipopData,
+    isLoading: isIpopLoading,
+    error: ipopError,
+    refetch: refetchIpop
+  } = useIpopUtilization();
+
+  const {
+    data: lastUpdateQuery,
+    isLoading: isLastUpdateLoading,
+    error: lastUpdateError,
+    refetch: refetchLastUpdate
+  } = useLastUpdate();
+
+  // Mutation for deleting cables (available if needed)
+  const deleteCableMutation = useDeleteCable();
+
+  // Prefetch helpers
+  const { prefetchDataSummary, prefetchIpopUtilization } = usePrefetchData();
+
   // Environment variables - memoized to prevent unnecessary re-renders
   const apiConfig = useMemo(() => ({
     apiBaseUrl: process.env.REACT_APP_API_BASE_URL || '',
@@ -397,25 +444,12 @@ const UserCableMap = React.memo<UserCableMapProps>(({ selectedCable, selectedCut
     }
 
     try {
-      console.log('Making delete request for cable:', cable.cut_id);
-      const response = await fetch(
-        `${apiConfig.apiBaseUrl}${apiConfig.port}/delete-single-cable-cuts/${cable.cut_id}`,
-        {
-          method: 'DELETE',
-          headers: {
-            'Content-Type': 'application/json'
-          }
-        }
-      );
+      console.log('Making delete request for cable (mutation):', cable.cut_id);
 
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
+      const result = await deleteCableMutation.mutateAsync(cable.cut_id);
+      console.log('Delete mutation response:', result);
 
-      const result = await response.json();
-      console.log('Delete response:', result);
-
-      if (result.success) {
+      if (result && (result.success || result?.ok)) {
         // Update the lastUpdate to trigger refresh in sidebar if it exists
         setLastUpdate(Date.now().toString());
         alert('Cable deleted successfully!');
@@ -423,14 +457,45 @@ const UserCableMap = React.memo<UserCableMapProps>(({ selectedCable, selectedCut
         if (onCloseCablePopup) {
           onCloseCablePopup();
         }
+        // Ensure queries are refetched to update the UI
+        refetchStats();
+        refetchLastUpdate();
       } else {
-        alert('Failed to delete cable: ' + (result.message || 'Unknown error'));
+        alert('Failed to delete cable: ' + (result?.message || 'Unknown error'));
       }
     } catch (error) {
       console.error('Error deleting cable:', error);
       alert('Error deleting cable: ' + (error instanceof Error ? error.message : 'Unknown error'));
     }
-  }, [apiConfig, setLastUpdate, onCloseCablePopup]);
+  }, [apiConfig, setLastUpdate, onCloseCablePopup, deleteCableMutation, refetchStats, refetchLastUpdate]);
+
+  // Sync TanStack Query results into local state for display
+  useEffect(() => {
+    if (statsData) {
+      // statsData shape matches our stats state
+      setStats(prev => ({ ...prev, ...statsData } as any));
+    }
+  }, [statsData]);
+
+  useEffect(() => {
+    if (ipopData) {
+      setIpopUtilization(ipopData.utilization || '0%');
+      setIpopDifference(ipopData.difference || '');
+    }
+  }, [ipopData]);
+
+  useEffect(() => {
+    if (lastUpdateQuery) {
+      setLastUpdate(lastUpdateQuery);
+    }
+  }, [lastUpdateQuery]);
+
+  // Prefetch data on mount for better performance
+  useEffect(() => {
+    prefetchDataSummary();
+    prefetchIpopUtilization();
+  }, [prefetchDataSummary, prefetchIpopUtilization]);
+
 
   // CSS for popup styling removed - functionality now handled by DeletedCablesSidebar
   useEffect(() => {
@@ -841,13 +906,42 @@ const UserCableMap = React.memo<UserCableMapProps>(({ selectedCable, selectedCut
           >
             <Suspense fallback={<LoadingSpinner message="Loading sidebar..." />}>
               <DeletedCablesSidebar
-                onSelectCable={handleSidebarCableSelect}
-                lastUpdate={lastUpdate}
-                setLastUpdate={setLastUpdate}
-                isAdmin={false}  // Disable admin functionality like Delete button for users
-                isUser={true}    // Enable user functionality 
+                onSelectCable={(cable) => {
+                  // Let DeletedCablesSidebar handle all map positioning internally
+                  // Don't interfere with map panning to avoid conflicts
+                  // console.log('Cable selected and positioned:', cable);
+                }}
+                lastUpdate={lastUpdate || undefined}
+                setLastUpdate={(val: string) => {
+                  // update local lastUpdate state and refetch query to keep UI in sync
+                  setLastUpdate(val);
+                  refetchLastUpdate();
+                }}
+                isAdmin={isAdminLoggedIn}  // Enable admin functionality only for administrators
+                isUser={true}   // Enable user functionality 
                 mapRef={externalMapRef || mapRef}
-                onCloseSidebar={handleSidebarClose}
+                onCloseSidebar={() => {
+                  // Close the sidebar
+                  setSidebarOpen(false);
+
+                  // Reset map camera to original/default view if map is available
+                  try {
+                    const map = (externalMapRef && externalMapRef.current) || mapRef.current;
+                    if (map) {
+                      // original center and zoom used by ChangeView
+                      const defaultCenter: [number, number] = [18, 134];
+                      const defaultZoom = 4;
+                      if (typeof map.setView === 'function') {
+                        map.setView(defaultCenter, defaultZoom, { animate: true, duration: 0.5 });
+                      } else if (typeof map.setZoom === 'function') {
+                        map.setView(defaultCenter, defaultZoom, { animate: true, duration: 0.5 });
+                      }
+                    }
+                  } catch (err) {
+                    /* swallow errors to avoid breaking UI on close */
+                    // console.error('Error resetting map view on sidebar close:', err);
+                  }
+                }} // Add close function that also recenters the map
               />
             </Suspense>
           </Box>

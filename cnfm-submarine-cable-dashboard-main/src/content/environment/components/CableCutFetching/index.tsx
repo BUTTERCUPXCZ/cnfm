@@ -25,6 +25,21 @@ function CableCutMarkers({ cableSegment }: CableCutMarkersProps) {
   const [canDelete, setCanDelete] = useState<boolean>(false);
   const markersRef = useRef<{ [key: string]: L.Marker }>({});
 
+  // Inject CSS to hide Leaflet popup default background for our custom popups
+  useEffect(() => {
+    if (typeof document === 'undefined') return;
+    if (document.getElementById('cnfm-cut-popup-styles')) return;
+    const style = document.createElement('style');
+    style.id = 'cnfm-cut-popup-styles';
+    style.innerHTML = `
+      /* Remove default Leaflet popup wrapper background so our card shows only */
+      .cnfm-cut-popup .leaflet-popup-content-wrapper { background: transparent !important; box-shadow: none !important; border: none !important; padding: 0 !important; }
+      .cnfm-cut-popup .leaflet-popup-tip { background: transparent !important; box-shadow: none !important; }
+      .cnfm-cut-popup .leaflet-popup-close-button { display: none !important; }
+    `;
+    document.head.appendChild(style);
+  }, []);
+
   // Effect to check permissions on component mount and localStorage changes
   useEffect(() => {
     const checkPermissions = () => {
@@ -93,8 +108,7 @@ function CableCutMarkers({ cableSegment }: CableCutMarkersProps) {
       console.error('Error removing marker:', error);
       // Optional: Show user-friendly error message
       alert(
-        `Failed to remove marker: ${
-          error instanceof Error ? error.message : 'Unknown error'
+        `Failed to remove marker: ${error instanceof Error ? error.message : 'Unknown error'
         }`
       );
     }
@@ -172,7 +186,6 @@ function CableCutMarkers({ cableSegment }: CableCutMarkersProps) {
     // Add/update markers that are in the data
     markers.forEach((markerData) => {
       const markerId = markerData.cut_id;
-
       // Check if marker already exists and if data has changed
       const existingMarker = markersRef.current[markerId];
       const hasDataChanged =
@@ -180,7 +193,7 @@ function CableCutMarkers({ cableSegment }: CableCutMarkersProps) {
         existingMarker.getLatLng().lat !== markerData.latitude ||
         existingMarker.getLatLng().lng !== markerData.longitude ||
         existingMarker.options.icon?.options.className !==
-          `cut-marker-${markerData.cut_type}-${cableSegment}`;
+        `cut-marker-${markerData.cut_type}-${cableSegment}`;
 
       // Only recreate marker if it doesn't exist or data has changed
       if (hasDataChanged) {
@@ -223,7 +236,106 @@ function CableCutMarkers({ cableSegment }: CableCutMarkersProps) {
           })
         });
 
-        // Remove popup functionality - no hover popups
+        // --- Restore hover popup functionality ---
+        // Format date
+        let dateStr = markerData.fault_date ? new Date(markerData.fault_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: '2-digit' }) : 'Unknown';
+        // Safely format distance
+        let distanceStr = 'N/A';
+        if (typeof markerData.distance === 'number' && !isNaN(markerData.distance)) {
+          distanceStr = markerData.distance.toFixed(2) + ' km';
+        } else if (typeof markerData.distance === 'string') {
+          const distStr = markerData.distance as string;
+          if (distStr.trim() !== '' && !isNaN(Number(distStr))) {
+            distanceStr = Number(distStr).toFixed(2) + ' km';
+          }
+        }
+
+        // Choose header color based on cut type
+        const headerColors: { [k: string]: string } = {
+          'Shunt Fault': '#f9a825',
+          'Partial Fiber Break': '#fb8c00',
+          'Fiber Break': '#f44336',
+          'Full Cut': '#c62828'
+        };
+        const headerColor = headerColors[markerData.cut_type] || '#c62828';
+        const headerText = markerData.cut_type ? markerData.cut_type.toUpperCase() : 'FULL CUT';
+
+        // Popup HTML content (table-based design matching requested layout)
+        const popupHtml = `
+      <div class="cable-cut-popup" style="font-family: Arial, sans-serif; width: 200px; box-shadow: 0 4px 12px rgba(0,0,0,0.3); border-radius: 5px; overflow: hidden; border: 2px solid ${markerStyle.color};">
+        <div style="background-color: ${markerStyle.color}; color: white; padding: 6px; text-align: center; font-weight: bold; font-size: 13px; letter-spacing: 0.3px; text-shadow: 1px 1px 2px rgba(0,0,0,0.3);">
+          ${markerData.cut_type ? markerData.cut_type.toUpperCase() : 'FULL CUT'}
+        </div>
+        <div style="background-color: white; padding: 10px;">
+          <table style="width: 100%; border-collapse: collapse; font-size: 12px;">
+            <tr>
+              <td style="font-weight: bold; padding-bottom: 5px; color: #333;">Distance:</td>
+              <td style="text-align: right; padding-bottom: 5px; color: #666;">${distanceStr}</td>
+            </tr>
+            <tr>
+              <td style="font-weight: bold; padding-bottom: 5px; color: #333;">Depth:</td>
+              <td style="text-align: right; padding-bottom: 5px; color: #666;">${depth} m</td>
+            </tr>
+            <tr>
+              <td style="font-weight: bold; padding-bottom: 5px; color: #333;">Lat:</td>
+              <td style="text-align: right; padding-bottom: 5px; color: #666; font-family: monospace; font-size: 11px;">${Number(markerData.latitude).toFixed(4)}</td>
+            </tr>
+            <tr>
+              <td style="font-weight: bold; padding-bottom: 5px; color: #333;">Lng:</td>
+              <td style="text-align: right; padding-bottom: 5px; color: #666; font-family: monospace; font-size: 11px;">${Number(markerData.longitude).toFixed(4)}</td>
+            </tr>
+            <tr>
+              <td style="font-weight: bold; padding-bottom: 5px; color: #333;">Date:</td>
+              <td style="text-align: right; padding-bottom: 5px; color: #666; font-size: 11px;">${dateStr}</td>
+            </tr>
+            <tr>
+              <td style="font-weight: bold; padding-bottom: 5px; color: #333;">Cable Type:</td>
+              <td style="text-align: right; padding-bottom: 5px; color: #666; font-size: 11px;">Unknown</td>
+            </tr>
+          </table>
+        </div>
+        ${canDelete ? `
+        <div style="background-color: #f8f9fa; padding: 10px; border-top: 1px solid #dee2e6; display: flex; flex-direction: column; gap: 6px;">
+          <button id="delete-cut-${markerId}" class="delete-marker-btn" style="background-color: #dc3545; color: white; border: none; padding: 6px 10px; border-radius: 4px; cursor: pointer; font-size: 11px; font-weight: bold; width: 100%; transition: all 0.2s; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">🗑️ Delete</button>
+          <button id="close-cut-${markerId}" class="close-popup-btn" style="background-color: #6c757d; color: white; border: none; padding: 6px 10px; border-radius: 4px; cursor: pointer; font-size: 11px; font-weight: bold; width: 100%; transition: all 0.2s; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">✕ Close</button>
+        </div>
+        ` : `
+        <div style="background-color: #f8f9fa; padding: 10px; border-top: 1px solid #dee2e6;">
+          <button id="close-cut-${markerId}" class="close-popup-btn" style="background-color: #6c757d; color: white; border: none; padding: 6px 10px; border-radius: 4px; cursor: pointer; font-size: 11px; font-weight: bold; width: 100%; transition: all 0.2s; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">✕ Close</button>
+        </div>
+        `}
+      </div>
+    `;
+        marker.bindPopup(popupHtml, { closeButton: false, autoPan: true, className: 'cnfm-cut-popup' });
+
+        // Open popup on hover, close on mouseout
+        marker.on('mouseover', function () {
+          marker.openPopup();
+        });
+        marker.on('mouseout', function () {
+          marker.closePopup();
+        });
+
+        // Handle Delete and Close button clicks
+        marker.on('popupopen', function () {
+          if (canDelete) {
+            const deleteBtn = document.getElementById(`delete-cut-${markerId}`);
+            if (deleteBtn) {
+              deleteBtn.onclick = (e) => {
+                e.preventDefault();
+                removeMarker(markerId);
+                marker.closePopup();
+              };
+            }
+          }
+          const closeBtn = document.getElementById(`close-cut-${markerId}`);
+          if (closeBtn) {
+            closeBtn.onclick = (e) => {
+              e.preventDefault();
+              marker.closePopup();
+            };
+          }
+        });
 
         // Add to map and store reference
         marker.addTo(map);
