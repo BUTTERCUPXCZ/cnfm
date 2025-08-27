@@ -157,30 +157,100 @@ app.post('/cable-cuts', async (req, res) => {
       try {
         // Determine the correct column name based on the table type
         const isTgnTable = tableName.startsWith('tgnia_');
-        const distanceColumn = isTgnTable ? 'cable_cumm' : 'cable_cumulative_total';
+        const distanceColumn = isTgnTable ? 'route_distance_cumm' : 'cable_cumulative_total';
         
-        // Find the closest rows before and after the cut distance (same logic as frontend)
-        const lookupQuery = `
-          SELECT cable_type, ${distanceColumn} as distance_value
-          FROM ${tableName} 
-          WHERE ${distanceColumn} IS NOT NULL
-          ORDER BY ABS(${distanceColumn} - ?)
-          LIMIT 2
-        `;
+        if (isTgnTable) {
+          // For TGN tables, use separate queries to find before and after segments
+          // Get the closest segment that comes after the cut distance
+          const afterQuery = `
+            SELECT cable_type, ${distanceColumn} as distance_value
+            FROM ${tableName} 
+            WHERE ${distanceColumn} IS NOT NULL 
+              AND ${distanceColumn} != '' 
+              AND ${distanceColumn} != 'CUMM.'
+              AND ${distanceColumn} + 0 = ${distanceColumn}
+              AND ${distanceColumn} + 0 >= ?
+              AND cable_type IS NOT NULL
+              AND cable_type != ''
+              AND cable_type != 'TYPE '
+              AND cable_type != 'CABLE'
+            ORDER BY (${distanceColumn} + 0) ASC
+            LIMIT 1
+          `;
+          
+          // Get the closest segment that comes before the cut distance
+          const beforeQuery = `
+            SELECT cable_type, ${distanceColumn} as distance_value
+            FROM ${tableName} 
+            WHERE ${distanceColumn} IS NOT NULL 
+              AND ${distanceColumn} != '' 
+              AND ${distanceColumn} != 'CUMM.'
+              AND ${distanceColumn} + 0 = ${distanceColumn}
+              AND ${distanceColumn} + 0 <= ?
+              AND cable_type IS NOT NULL
+              AND cable_type != ''
+              AND cable_type != 'TYPE '
+              AND cable_type != 'CABLE'
+            ORDER BY (${distanceColumn} + 0) DESC
+            LIMIT 1
+          `;
+          
+          const [afterResult, beforeResult] = await Promise.all([
+            new Promise((resolve, reject) => {
+              db.query(afterQuery, [distance], (err, results) => {
+                if (err) reject(err);
+                else resolve(results);
+              });
+            }),
+            new Promise((resolve, reject) => {
+              db.query(beforeQuery, [distance], (err, results) => {
+                if (err) reject(err);
+                else resolve(results);
+              });
+            })
+          ]);
+          
+          // Debug logging to see what's being found
+          console.log(`Distance: ${distance}`);
+          console.log('After result:', afterResult);
+          console.log('Before result:', beforeResult);
+          
+          // Prioritize afterCut for TGN, but if afterCut distance equals beforeCut distance,
+          // prefer the beforeCut (segment at exact distance)
+          const afterCut = afterResult && afterResult.length > 0 ? afterResult[0] : null;
+          const beforeCut = beforeResult && beforeResult.length > 0 ? beforeResult[0] : null;
+          
+          // If both exist and beforeCut distance equals the cut distance, use beforeCut
+          if (beforeCut && parseFloat(beforeCut.distance_value) === parseFloat(distance)) {
+            cable_type = beforeCut.cable_type;
+          } else {
+            // Otherwise prioritize afterCut, fallback to beforeCut
+            cable_type = afterCut?.cable_type || beforeCut?.cable_type || null;
+          }
+          
+          console.log(`Selected cable_type: ${cable_type}`);
+        } else {
+          // For other cables, use the original logic
+          const lookupQuery = `
+            SELECT cable_type, ${distanceColumn} as distance_value
+            FROM ${tableName} 
+            WHERE ${distanceColumn} IS NOT NULL
+            ORDER BY ABS(${distanceColumn} - ?)
+            LIMIT 2
+          `;
 
-        const result = await new Promise((resolve, reject) => {
-          db.query(lookupQuery, [distance], (err, results) => {
-            if (err) reject(err);
-            else resolve(results);
+          const result = await new Promise((resolve, reject) => {
+            db.query(lookupQuery, [distance], (err, results) => {
+              if (err) reject(err);
+              else resolve(results);
+            });
           });
-        });
 
-        if (result && result.length > 0) {
-          // Use same logic as frontend: beforeCut?.cable_type || afterCut?.cable_type
-          const closest = result[0];
-          const secondClosest = result[1];
-
-          cable_type = closest?.cable_type || secondClosest?.cable_type || null;
+          if (result && result.length > 0) {
+            const closest = result[0];
+            const secondClosest = result[1];
+            cable_type = closest?.cable_type || secondClosest?.cable_type || null;
+          }
         }
       } catch (err) {
         console.log(`Could not lookup cable_type from ${tableName}:`, err.message);
