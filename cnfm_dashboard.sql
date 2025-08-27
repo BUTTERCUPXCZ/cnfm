@@ -3,9 +3,9 @@
 -- https://www.phpmyadmin.net/
 --
 -- Host: 127.0.0.1
--- Generation Time: Aug 20, 2025 at 09:33 AM
+-- Generation Time: Aug 27, 2025 at 11:24 AM
 -- Server version: 10.4.32-MariaDB
--- PHP Version: 8.2.12
+-- PHP Version: 8.0.30
 
 SET SQL_MODE = "NO_AUTO_VALUE_ON_ZERO";
 START TRANSACTION;
@@ -38,13 +38,6 @@ CREATE TABLE `cable_cuts` (
   `depth` varchar(256) NOT NULL,
   `cable_type` varchar(256) NOT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
-
---
--- Dumping data for table `cable_cuts`
---
-
-INSERT INTO `cable_cuts` (`cut_id`, `distance`, `cut_type`, `fault_date`, `simulated`, `latitude`, `longitude`, `depth`, `cable_type`) VALUES
-('sjc7-1755674963160', '24', 'Partial Fiber Break', '2025-08-30', '2025-08-20T07:29:23.160Z', '7.5193069508284935', '111.16601269535191', '1950', 'LWS');
 
 --
 -- Triggers `cable_cuts`
@@ -102,7 +95,10 @@ INSERT INTO `data_updates` (`update_id`, `file_name`, `description`, `date_time`
 (18, '', 'Updated RPL data in sea_us_rpl_s5 from CSV (deleted 179 old records, inserted 97 new records)', '2025-08-20 07:24:17'),
 (19, '', 'Updated RPL data in sea_us_rpl_s6 from CSV (deleted 634 old records, inserted 628 new records)', '2025-08-20 07:24:53'),
 (20, '', 'Updated RPL data in sjc_rpl_s5 from CSV (deleted 271 old records, inserted 269 new records)', '2025-08-20 07:28:16'),
-(21, '', 'Updated RPL data in sjc_rpl_s7 from CSV (deleted 369 old records, inserted 367 new records)', '2025-08-20 07:28:48');
+(21, '', 'Updated RPL data in sjc_rpl_s7 from CSV (deleted 369 old records, inserted 367 new records)', '2025-08-20 07:28:48'),
+(22, '', 'Updated RPL data in sea_us_rpl_s2 from CSV (deleted 391 old records, inserted 391 new records)', '2025-08-27 06:20:04'),
+(23, '', 'Updated RPL data in sea_us_rpl_s2 from CSV (deleted 391 old records, inserted 391 new records)', '2025-08-27 06:22:42'),
+(24, '', 'Updated RPL data in sea_us_rpl_s2 from CSV (deleted 391 old records, inserted 391 new records)', '2025-08-27 07:02:25');
 
 -- --------------------------------------------------------
 
@@ -11268,6 +11264,7 @@ CREATE TRIGGER `before_insert_coordinates_s1` BEFORE INSERT ON `tgnia_rpl_s1` FO
         
         -- Extract degrees and minutes for longitude
         SET lon_deg = CAST(SUBSTRING_INDEX(SUBSTRING(NEW.longitude, 2), ' ', 1) AS DECIMAL(10,6));
+
         SET lon_min = CAST(SUBSTRING_INDEX(NEW.longitude, ' ', -1) AS DECIMAL(10,6));
         
         -- Convert to decimal degrees with 6 decimal places
@@ -14484,7 +14481,7 @@ ALTER TABLE `users`
 -- AUTO_INCREMENT for table `data_updates`
 --
 ALTER TABLE `data_updates`
-  MODIFY `update_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=22;
+  MODIFY `update_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=25;
 
 --
 -- AUTO_INCREMENT for table `users`
