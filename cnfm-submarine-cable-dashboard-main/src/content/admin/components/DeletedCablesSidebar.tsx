@@ -407,7 +407,7 @@ const DeletedCablesSidebar: React.FC<DeletedCablesSidebarProps> = ({
                     <div style="background-color: #f8f9fa; padding: 10px; border-top: 1px solid #dee2e6; display: flex; flex-direction: column; gap: 6px;">
                         <button class="delete-marker-btn" data-cut-id="${cable.cut_id}" onclick="
                             console.log('Delete button clicked for cable: ${cable.cut_id}');
-                            const deleteEvent = new CustomEvent('popupDeleteCable', { detail: { cutId: '${cable.cut_id}' } });
+                            const deleteEvent = new CustomEvent('deletedSidebarPopupDelete', { detail: { cutId: '${cable.cut_id}' } });
                             document.dispatchEvent(deleteEvent);
                         " style="
                             background-color: #dc3545;
@@ -590,11 +590,11 @@ const DeletedCablesSidebar: React.FC<DeletedCablesSidebarProps> = ({
             handlePopupClose();
         };
 
-        document.addEventListener('popupDeleteCable', handlePopupDeleteEvent as EventListener);
+        document.addEventListener('deletedSidebarPopupDelete', handlePopupDeleteEvent as EventListener);
         document.addEventListener('popupClose', handlePopupCloseEvent);
 
         (marker as any)._customEventCleanup = () => {
-            document.removeEventListener('popupDeleteCable', handlePopupDeleteEvent as EventListener);
+            document.removeEventListener('deletedSidebarPopupDelete', handlePopupDeleteEvent as EventListener);
             document.removeEventListener('popupClose', handlePopupCloseEvent);
         };
 

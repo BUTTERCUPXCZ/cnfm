@@ -1,6 +1,18 @@
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useState, useRef, useMemo } from 'react';
 import { useMap } from 'react-leaflet';
 import L from 'leaflet';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useDeleteCable } from '../../../../hooks/useApi';
+import {
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogContentText,
+  DialogActions,
+  Button,
+  Snackbar,
+  Alert
+} from '@mui/material';
 
 type MarkerData = {
   latitude: number;
@@ -11,6 +23,7 @@ type MarkerData = {
   depth?: string;
   simulated: string;
   fault_date?: string;
+  cable_type?: string; // <-- Add this
 };
 
 type CableCutMarkersProps = {
@@ -24,6 +37,9 @@ function CableCutMarkers({ cableSegment }: CableCutMarkersProps) {
   const [markers, setMarkers] = useState<MarkerData[]>([]);
   const [canDelete, setCanDelete] = useState<boolean>(false);
   const markersRef = useRef<{ [key: string]: L.Marker }>({});
+  // Track hover close timeouts per marker so popup doesn't disappear instantly
+  const hoverCloseTimeoutsRef = useRef<{ [key: string]: number | null }>({});
+  const queryClient = useQueryClient();
 
   // Inject CSS to hide Leaflet popup default background for our custom popups
   useEffect(() => {
@@ -74,98 +90,118 @@ function CableCutMarkers({ cableSegment }: CableCutMarkersProps) {
     };
   }, []);
 
-  // Function to handle marker removal
-  const removeMarker = async (cutId: string) => {
+  // Use central mutation hook so deletedCables + lastUpdate are invalidated globally
+  const deleteMutation = useDeleteCable();
+
+  // removeMarker will open confirmation dialog instead of deleting immediately
+  const removeMarker = (cutId: string) => openDeleteDialog(cutId);
+
+  // Confirmation dialog state for deleting markers (mirrors DeletedCablesSidebar flow)
+  const [deleteDialog, setDeleteDialog] = useState<{ open: boolean; cutId: string | null }>({
+    open: false,
+    cutId: null
+  });
+
+  const [notification, setNotification] = useState<{ open: boolean; message: string; severity: 'success' | 'error' | 'info' | 'warning' }>({
+    open: false,
+    message: '',
+    severity: 'info'
+  });
+
+  const showNotification = (message: string, severity: 'success' | 'error' | 'info' | 'warning' = 'info') => {
+    setNotification({ open: true, message, severity });
+  };
+
+  const hideNotification = () => setNotification(prev => ({ ...prev, open: false }));
+
+  const openDeleteDialog = (cutId: string) => setDeleteDialog({ open: true, cutId });
+  const closeDeleteDialog = () => setDeleteDialog({ open: false, cutId: null });
+
+  const handleConfirmDelete = async () => {
+    const cutId = deleteDialog.cutId;
+    if (!cutId) {
+      showNotification('Invalid cut id', 'error');
+      closeDeleteDialog();
+      return;
+    }
+
     try {
-      // Make API call to delete from backend
-      const response = await fetch(
-        `${apiBaseUrl}${port}/delete-single-cable-cuts/${cutId}`,
-        {
-          method: 'DELETE',
-          headers: {
-            'Content-Type': 'application/json'
+      // call the centralized delete mutation and await
+      await deleteMutation.mutateAsync(cutId);
+      showNotification('Cable deleted successfully', 'success');
+
+      // close any open popup and cleanup marker if still present
+      const m = markersRef.current[cutId] as any;
+      try {
+        if (m) {
+          if (typeof m._customEventCleanup === 'function') {
+            try { m._customEventCleanup(); } catch (e) { /* ignore */ }
           }
+          if (typeof (m.closePopup) === 'function') {
+            m.closePopup();
+          }
+          map.removeLayer(m);
+          delete markersRef.current[cutId];
         }
-      );
-
-      const result = await response.json();
-
-      if (!response.ok) {
-        throw new Error(result.message || 'Failed to delete cable cut');
+      } catch (err) {
+        // ignore cleanup errors
       }
-
-      // Remove from local state only if backend deletion was successful
-      setMarkers((prevMarkers) =>
-        prevMarkers.filter((marker) => marker.cut_id !== cutId)
-      );
-
-      // Remove from map immediately
-      if (markersRef.current[cutId]) {
-        map.removeLayer(markersRef.current[cutId]);
-        delete markersRef.current[cutId];
-      }
-    } catch (error) {
-      console.error('Error removing marker:', error);
-      // Optional: Show user-friendly error message
-      alert(
-        `Failed to remove marker: ${error instanceof Error ? error.message : 'Unknown error'
-        }`
-      );
+      // Also invalidate the segment-specific cableCuts query so markers list updates
+      queryClient.invalidateQueries({ queryKey: ['cableCuts', cableSegment] });
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Failed to delete';
+      console.error('Error deleting cut:', msg);
+      showNotification(msg, 'error');
+    } finally {
+      closeDeleteDialog();
     }
   };
 
-  // Fetch polyline and marker data
+  // Use TanStack Query to fetch cable cuts with polling and caching
+  const fetchCuts = async () => {
+    const res = await fetch(`${apiBaseUrl}${port}/fetch-cable-cuts`);
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.message || 'Failed to fetch cable cuts');
+    }
+    return res.json();
+  };
+
+  const { data: cutsRaw = [], isFetching } = useQuery({
+    queryKey: ['cableCuts', cableSegment],
+    queryFn: fetchCuts,
+    // Poll for changes. Adjust interval as necessary for performance.
+    refetchInterval: 2000,
+    staleTime: 5000,
+    refetchOnWindowFocus: false,
+    retry: 1
+  });
+
+  // Derive markers for this segment from cached query data
+  const queriedMarkers = useMemo(() => {
+    if (!Array.isArray(cutsRaw)) return [] as MarkerData[];
+    return cutsRaw
+      .filter(
+        (item: any) =>
+          item.cut_id && typeof item.cut_id === 'string' && item.cut_id.includes(cableSegment)
+      )
+      .map((item: any) => ({
+        latitude: item.latitude,
+        longitude: item.longitude,
+        cut_id: item.cut_id,
+        cut_type: item.cut_type,
+        distance: item.distance,
+        depth: item.depth,
+        simulated: item.simulated,
+        fault_date: item.fault_date,
+        cable_type: item.cable_type
+      }));
+  }, [cutsRaw, cableSegment]);
+
+  // Keep local markers in sync with query-derived markers (preserve previous behaviour)
   useEffect(() => {
-    let interval: NodeJS.Timeout;
-
-    // Fetch Cable Cuts Data
-    const fetchCutsData = async () => {
-      try {
-        const response = await fetch(`${apiBaseUrl}${port}/fetch-cable-cuts`);
-        const result = await response.json();
-
-        let markerData: MarkerData[] = [];
-
-        if (Array.isArray(result) && result.length > 0) {
-          // Process marker data - filter for events containing the specified cable segment
-          markerData = result
-            .filter(
-              (item: any) =>
-                item.cut_id &&
-                typeof item.cut_id === 'string' &&
-                item.cut_id.includes(cableSegment)
-            )
-            .map((item: any) => ({
-              latitude: item.latitude,
-              longitude: item.longitude,
-              cut_id: item.cut_id,
-              cut_type: item.cut_type,
-              distance: item.distance,
-              depth: item.depth,
-              simulated: item.simulated,
-              fault_date: item.fault_date
-            }));
-        }
-
-        // Always update markers state (even if empty)
-        setMarkers(markerData);
-      } catch (err) {
-        console.error(`Error fetching marker data for ${cableSegment}:`, err);
-        // On error, set empty array to clear markers
-        setMarkers([]);
-      }
-    };
-
-    // Fetch both types of data
-    const fetchAllData = async () => {
-      await fetchCutsData();
-    };
-
-    fetchAllData();
-    interval = setInterval(fetchCutsData, 2000);
-
-    return () => clearInterval(interval);
-  }, [apiBaseUrl, port, cableSegment]);
+    setMarkers(queriedMarkers);
+  }, [queriedMarkers]);
 
   // Effect to manage markers based on data changes
   useEffect(() => {
@@ -290,33 +326,43 @@ function CableCutMarkers({ cableSegment }: CableCutMarkersProps) {
             </tr>
             <tr>
               <td style="font-weight: bold; padding-bottom: 5px; color: #333;">Cable Type:</td>
-              <td style="text-align: right; padding-bottom: 5px; color: #666; font-size: 11px;">Unknown</td>
+              <td style="text-align: right; padding-bottom: 5px; color: #666; font-size: 11px;">${markerData.cable_type || 'Unknown'}</td>
             </tr>
           </table>
         </div>
         ${canDelete ? `
         <div style="background-color: #f8f9fa; padding: 10px; border-top: 1px solid #dee2e6; display: flex; flex-direction: column; gap: 6px;">
-          <button id="delete-cut-${markerId}" class="delete-marker-btn" style="background-color: #dc3545; color: white; border: none; padding: 6px 10px; border-radius: 4px; cursor: pointer; font-size: 11px; font-weight: bold; width: 100%; transition: all 0.2s; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">🗑️ Delete</button>
-          <button id="close-cut-${markerId}" class="close-popup-btn" style="background-color: #6c757d; color: white; border: none; padding: 6px 10px; border-radius: 4px; cursor: pointer; font-size: 11px; font-weight: bold; width: 100%; transition: all 0.2s; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">✕ Close</button>
+          <button id="delete-cut-${markerId}" class="delete-marker-btn" onclick="(function(){const e=new CustomEvent('popupDeleteCable',{detail:{cutId:'${markerId}'}});document.dispatchEvent(e);})();" style="background-color: #dc3545; color: white; border: none; padding: 6px 10px; border-radius: 4px; cursor: pointer; font-size: 11px; font-weight: bold; width: 100%; transition: all 0.2s; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">🗑️ Delete</button>
+          <button id="close-cut-${markerId}" class="close-popup-btn" onclick="(function(){const e=new CustomEvent('popupClose');document.dispatchEvent(e);})();" style="background-color: #6c757d; color: white; border: none; padding: 6px 10px; border-radius: 4px; cursor: pointer; font-size: 11px; font-weight: bold; width: 100%; transition: all 0.2s; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">✕ Close</button>
         </div>
         ` : `
         <div style="background-color: #f8f9fa; padding: 10px; border-top: 1px solid #dee2e6;">
-          <button id="close-cut-${markerId}" class="close-popup-btn" style="background-color: #6c757d; color: white; border: none; padding: 6px 10px; border-radius: 4px; cursor: pointer; font-size: 11px; font-weight: bold; width: 100%; transition: all 0.2s; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">✕ Close</button>
+          <button id="close-cut-${markerId}" class="close-popup-btn" onclick="(function(){const e=new CustomEvent('popupClose');document.dispatchEvent(e);})();" style="background-color: #6c757d; color: white; border: none; padding: 6px 10px; border-radius: 4px; cursor: pointer; font-size: 11px; font-weight: bold; width: 100%; transition: all 0.2s; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">✕ Close</button>
         </div>
         `}
       </div>
     `;
         marker.bindPopup(popupHtml, { closeButton: false, autoPan: true, className: 'cnfm-cut-popup' });
 
-        // Open popup on hover, close on mouseout
+        // Open popup on hover, close after a short delay on mouseout so users can move
+        // cursor between marker and popup without it disappearing instantly.
         marker.on('mouseover', function () {
+          // Clear any pending close timeout for this marker
+          if (hoverCloseTimeoutsRef.current[markerId]) {
+            clearTimeout(hoverCloseTimeoutsRef.current[markerId]!);
+            hoverCloseTimeoutsRef.current[markerId] = null;
+          }
           marker.openPopup();
         });
         marker.on('mouseout', function () {
-          marker.closePopup();
+          // Delay closing to allow pointer to move to the popup
+          hoverCloseTimeoutsRef.current[markerId] = window.setTimeout(() => {
+            marker.closePopup();
+            hoverCloseTimeoutsRef.current[markerId] = null;
+          }, 300);
         });
 
-        // Handle Delete and Close button clicks
+        // Handle Delete and Close button clicks, and attach hover listeners to popup
         marker.on('popupopen', function () {
           if (canDelete) {
             const deleteBtn = document.getElementById(`delete-cut-${markerId}`);
@@ -335,11 +381,92 @@ function CableCutMarkers({ cableSegment }: CableCutMarkersProps) {
               marker.closePopup();
             };
           }
+
+          // Attach hover enter/leave to popup element so it doesn't close when
+          // moving cursor between marker and popup.
+          try {
+            const popup = typeof (marker.getPopup) === 'function' ? marker.getPopup() : undefined;
+            const popupEl = popup && typeof (popup.getElement) === 'function' ? popup.getElement() : undefined;
+            if (popupEl) {
+              const onPopupEnter = () => {
+                if (hoverCloseTimeoutsRef.current[markerId]) {
+                  clearTimeout(hoverCloseTimeoutsRef.current[markerId]!);
+                  hoverCloseTimeoutsRef.current[markerId] = null;
+                }
+              };
+              const onPopupLeave = () => {
+                hoverCloseTimeoutsRef.current[markerId] = window.setTimeout(() => {
+                  marker.closePopup();
+                  hoverCloseTimeoutsRef.current[markerId] = null;
+                }, 300);
+              };
+
+              popupEl.addEventListener('mouseenter', onPopupEnter);
+              popupEl.addEventListener('mouseleave', onPopupLeave);
+
+              // store cleanup so we can remove listeners on popupclose
+              (marker as any)._popupHoverCleanup = () => {
+                try {
+                  popupEl.removeEventListener('mouseenter', onPopupEnter);
+                  popupEl.removeEventListener('mouseleave', onPopupLeave);
+                } catch (e) {
+                  // ignore
+                }
+                if (hoverCloseTimeoutsRef.current[markerId]) {
+                  clearTimeout(hoverCloseTimeoutsRef.current[markerId]!);
+                  hoverCloseTimeoutsRef.current[markerId] = null;
+                }
+              };
+            }
+          } catch (err) {
+            // ignore DOM errors
+          }
+        });
+
+        marker.on('popupclose', function () {
+          if ((marker as any)._popupHoverCleanup) {
+            try {
+              (marker as any)._popupHoverCleanup();
+            } catch (e) {
+              // ignore
+            }
+            delete (marker as any)._popupHoverCleanup;
+          }
         });
 
         // Add to map and store reference
         marker.addTo(map);
         markersRef.current[markerId] = marker;
+
+        // Wire up central popup delete/close events (same pattern as DeletedCablesSidebar)
+        const handlePopupDeleteEvent = (event: CustomEvent) => {
+          const cutId = event.detail?.cutId;
+          if (cutId === markerId) {
+            try {
+              // Open confirmation dialog instead of immediate deletion
+              openDeleteDialog(markerId);
+            } catch (e) {
+              console.error('Error handling popup delete event', e);
+              showNotification('Error initiating delete', 'error');
+            }
+          }
+        };
+
+        const handlePopupCloseEvent = () => {
+          try {
+            marker.closePopup();
+          } catch (e) {
+            // ignore
+          }
+        };
+
+        document.addEventListener('popupDeleteCable', handlePopupDeleteEvent as EventListener);
+        document.addEventListener('popupClose', handlePopupCloseEvent);
+
+        (marker as any)._customEventCleanup = () => {
+          document.removeEventListener('popupDeleteCable', handlePopupDeleteEvent as EventListener);
+          document.removeEventListener('popupClose', handlePopupCloseEvent);
+        };
       }
     });
   }, [markers, map, cableSegment]);
@@ -349,9 +476,26 @@ function CableCutMarkers({ cableSegment }: CableCutMarkersProps) {
     return () => {
       // Remove all markers when component unmounts
       Object.values(markersRef.current).forEach((marker) => {
-        map.removeLayer(marker);
+        try {
+          map.removeLayer(marker);
+        } catch (e) {
+          // ignore
+        }
       });
       markersRef.current = {};
+
+      // Clear any pending hover close timeouts
+      Object.keys(hoverCloseTimeoutsRef.current).forEach((k) => {
+        const t = hoverCloseTimeoutsRef.current[k];
+        if (t) {
+          try {
+            clearTimeout(t);
+          } catch (e) {
+            // ignore
+          }
+        }
+      });
+      hoverCloseTimeoutsRef.current = {};
     };
   }, [map]);
 
@@ -393,7 +537,45 @@ function CableCutMarkers({ cableSegment }: CableCutMarkersProps) {
     );
   };
 
-  return null; // This component manages markers directly, no JSX needed
+  return (
+    <>
+      {/* Dialog to confirm deletion from popup (mirrors DeletedCablesSidebar UX) */}
+      <Dialog
+        open={deleteDialog.open}
+        onClose={closeDeleteDialog}
+        aria-labelledby="delete-dialog-title"
+        aria-describedby="delete-dialog-description"
+        maxWidth="sm"
+        fullWidth
+      >
+        <DialogTitle id="delete-dialog-title" sx={{ color: '#d32f2f', fontWeight: 'bold' }}>
+          ⚠️ Confirm Cable Deletion
+        </DialogTitle>
+        <DialogContent>
+          <DialogContentText id="delete-dialog-description">
+            Are you sure you want to permanently delete this cable?
+            <br />
+            <br />
+            This action cannot be undone and will remove all associated data.
+          </DialogContentText>
+        </DialogContent>
+        <DialogActions sx={{ p: 2, gap: 1 }}>
+          <Button onClick={closeDeleteDialog} variant="outlined" color="primary">
+            Cancel
+          </Button>
+          <Button onClick={handleConfirmDelete} variant="contained" color="error">
+            Delete
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      <Snackbar open={notification.open} autoHideDuration={6000} onClose={hideNotification} anchorOrigin={{ vertical: 'top', horizontal: 'center' }}>
+        <Alert onClose={hideNotification} severity={notification.severity} sx={{ width: '100%' }}>
+          {notification.message}
+        </Alert>
+      </Snackbar>
+    </>
+  );
 }
 
 export default CableCutMarkers;
